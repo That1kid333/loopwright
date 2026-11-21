@@ -1,16 +1,49 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<script src="supabase.js"></script><script src="auth.js"></script><style>@media (max-width:760px){.hostbar .hostnote,#lwwho{display:none}}</style>
+<script src="supabase.js"></script><script src="auth.js"></script><style>@media (max-width:760px){.hostbar .hostnote:not(.cr),#lwwho{display:none}}</style>
 <script>
-/* Stand-alone shim: no Claude runtime here. Export saves through a normal download. */
-window.claude = { use: async function (name) {
-  if (name !== "downloads") return null;
-  return { save: async function (o) {
-    var url = URL.createObjectURL(o.data), a = document.createElement("a");
-    a.href = url; a.download = o.filename || "loopwright-track.zip"; document.body.appendChild(a); a.click();
-    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 4000);
+/* Stand-alone shim: export saves through a normal download, and the AI producer
+   calls Loopwright's own "arrange" server function with the signed-in user's session. */
+window.LW_LIVE = true;
+(function () {
+  var FN = "https://vvllgdrpnieorcpweurz.supabase.co/functions/v1/arrange";
+  var KEY = "sb_publishable_6iCD4SBhUOXgOoyyIT3qZA__dTbzZZF";
+  function sbClient() {
+    if (window.LWA && window.LWA.sb) return window.LWA.sb;
+    if (!window.__lwsb && window.supabase) window.__lwsb = window.supabase.createClient("https://vvllgdrpnieorcpweurz.supabase.co", KEY,
+      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+    return window.__lwsb || null;
+  }
+  window.lwSession = async function () { var sb = sbClient(); if (!sb) return null; var r = await sb.auth.getSession(); return r.data.session; };
+  function fail(code, msg) { var e = new Error(msg || code); e.code = code; return e; }
+  async function arrange(prompt, opts) {
+    opts = opts || {};
+    var s = await window.lwSession();
+    if (!s) throw fail("sign_in");
+    var mode = "standard"; try { if (typeof settings !== "undefined" && settings.mode) mode = settings.mode; } catch (e) {}
+    var res;
+    try {
+      res = await fetch(FN, { method: "POST", signal: opts.signal,
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + s.access_token, "apikey": KEY },
+        body: JSON.stringify({ prompt: typeof prompt === "string" ? prompt : JSON.stringify(prompt), mode: mode }) });
+    } catch (e) { if (e && e.name === "AbortError") throw fail("cancelled"); throw fail("network"); }
+    var data = {}; try { data = await res.json(); } catch (e) {}
+    if (!res.ok || !data.plan) throw fail(data.error || "server", data.message);
+    if (typeof data.balance === "number") window.dispatchEvent(new CustomEvent("lw-credits", { detail: data.balance }));
+    return data.plan;
+  }
+  var sample = function (input, opts) { return arrange(input, opts).then(function (p) { return { text: JSON.stringify(p), truncated: false }; }); };
+  sample.json = arrange;
+  window.claude = { use: async function (name) {
+    if (name === "sample") return sample;
+    if (name !== "downloads") return null;
+    return { save: async function (o) {
+      var url = URL.createObjectURL(o.data), a = document.createElement("a");
+      a.href = url; a.download = o.filename || "loopwright-track.zip"; document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 4000);
+    } };
   } };
-} };
+})();
 </script>
 </head><body>
 
@@ -32,7 +65,7 @@ window.claude = { use: async function (name) {
   --display:"Space Grotesk",Inter,system-ui,sans-serif;
   --body:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
-  --bw:268px; --bh:340px; --hdw:212px; color-scheme:dark;
+  --bw:268px; --bh:340px; --hdw:248px; color-scheme:dark;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark}}
 :root[data-theme="dark"]{color-scheme:dark}
@@ -60,7 +93,7 @@ p{margin:0}
 .btn.tiny{padding:2px 8px;font-size:.78rem;min-height:24px}
 .btn:disabled{opacity:.45;cursor:default}
 .btn.on{border-color:var(--accent);color:var(--accent)}
-.sel{padding:4px 6px;border:1px solid var(--line-2);border-radius:7px;background:var(--bg-2);max-width:15em}
+select.sel{padding:4px 6px;border:1px solid var(--line-2);border-radius:7px;background:var(--bg-2);max-width:15em}
 .ico{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .ibtn{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--fg-2)}
 .ibtn:hover{color:var(--fg);background:var(--panel-2);border-color:var(--line)}
@@ -193,7 +226,7 @@ p{margin:0}
 .row.sel .thead{background:color-mix(in srgb,var(--tc) 9%,var(--panel))}
 .row.sel .lane{background:color-mix(in srgb,var(--tc) 4%,var(--bg))}
 .row.dropok .lane,.row.dropok .thead{outline:2px dashed var(--accent);outline-offset:-2px}
-.thead{position:sticky;left:0;z-index:3;display:grid;grid-template-columns:4px 1fr auto;grid-template-rows:auto auto;gap:3px 8px;align-items:center;padding:6px 8px 6px 0;background:var(--panel);border-right:1px solid var(--line);cursor:pointer}
+.thead{position:sticky;left:0;z-index:3;display:grid;grid-template-columns:4px minmax(0,1fr) auto;grid-template-rows:auto auto;gap:3px 8px;align-items:center;padding:6px 8px 6px 0;background:var(--panel);border-right:1px solid var(--line);cursor:pointer}
 .thead .tstrip{grid-row:1/3;align-self:stretch;background:var(--tc);border-radius:0 3px 3px 0;box-shadow:0 0 10px color-mix(in srgb,var(--tc) 50%,transparent)}
 .thead .tname{min-width:0;display:flex;align-items:center;gap:6px}
 .thead select{min-width:0;flex:1;border:0;background:transparent;font-weight:600;padding:2px 0;text-overflow:ellipsis}
@@ -204,7 +237,7 @@ p{margin:0}
 .ms.s.on{background:#4aa3ff;border-color:#4aa3ff;color:#001a33}
 .ms.l.on{background:var(--yours);border-color:var(--yours);color:#00210f}
 .ms svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2}
-.tmini{grid-column:2/4;display:flex;align-items:center;gap:8px}
+.tmini{grid-column:2/3;min-width:0;display:flex;align-items:center;gap:8px}
 .tmini .hm{flex:1;height:4px;border-radius:2px;background:var(--line);position:relative;overflow:hidden}
 .tmini .hm i{position:absolute;inset:0 auto 0 0;width:var(--v,0%);background:linear-gradient(90deg,#2fbf7a,#ffd54a 80%,#ff5a3c);transition:width 60ms linear}
 .tmini .fxn{font-family:var(--mono);font-size:.62rem;color:var(--fg-3);white-space:nowrap}
@@ -412,22 +445,87 @@ p{margin:0}
 .dragghost{position:fixed;z-index:90;pointer-events:none;padding:6px 10px;border-radius:8px;background:var(--panel-3);border:1px solid var(--accent);box-shadow:var(--shadow);font-size:.8rem}
 
 /* laptop and phone */
-@media (max-width:1100px){:root{--hdw:186px}.swing{display:none}.logo b{display:none}}
+@media (max-width:1100px){:root{--hdw:224px}.tmini .fxn{display:none}.swing{display:none}.logo b{display:none}}
+.mtabs,.msheet-head{display:none}
 @media (max-width:760px){
-  :root{--hdw:132px;--bh:260px}
-  .tb{gap:6px 8px;padding:6px 8px}
-  .ask{order:9;flex-basis:100%}
-  .mmeter,.lcd.tempo .lcd-sub{display:none}
-  .ws,.ws.nobrowser{grid-template-columns:0 0 1fr}
-  .browser{position:absolute;z-index:25;top:0;bottom:0;left:0;width:min(86vw,320px);box-shadow:var(--shadow);border-right:1px solid var(--line-2)}
-  .ws.nobrowser .browser{visibility:hidden}
-  .vsplit{display:none}
-  .ws>.center{grid-column:3;grid-row:1}
-  #viewHint{display:none}#trackCount{white-space:nowrap}.seg button{white-space:nowrap}
-  .thead .tmini .fxn{display:none}
-  .tbtns .ms.l{display:none}
-  .pe-steps,.steps-n{grid-template-columns:repeat(8,minmax(0,1fr))}
-  .pnl.float{left:4px!important;right:4px!important;width:auto!important}
+  :root{--hdw:118px}
+  body{font-size:14px}
+  .app{grid-template-rows:auto minmax(0,1fr) auto}
+  .status{display:none}
+  /* top: compact transport row, then the prompt */
+  .tb{gap:6px;padding:6px 8px;flex-wrap:wrap}
+  .logo{padding-right:0}.logo b{display:none}
+  .transport{gap:5px;flex:0 1 auto;min-width:0}
+  .tbtn{width:40px;height:40px}.tbtn.play{width:46px}
+  .lcd{min-width:0;height:40px;padding:0 7px}.lcd .lcd-sub{display:none}.lcd .big,.lcd input{font-size:.95rem}
+  .lcd.tempo{min-width:0}.lcd.tempo input{width:2.6em}
+  #metroBtn,.mmeter,.swing,#layoutBtn,#helpBtn{display:none}
+  .tb-right{gap:2px;margin-left:auto}
+  #exportBtn{font-size:0;gap:0;padding:0;width:40px;min-height:40px;justify-content:center}#exportBtn .ico{width:18px;height:18px}
+  .ibtn{width:40px;height:40px}
+  .hostbar{gap:8px!important;font-size:.8rem!important}
+  .ask{order:9;flex:1 1 100%;min-width:0}
+  .ask .pbox{min-height:44px;padding:0 4px 0 10px}
+  .ask .pbox textarea{font-size:16px}
+  #askBtn,#stopAsk{min-height:36px}
+  .recpop{position:fixed;top:auto;left:8px;right:8px;width:auto;margin-top:6px}
+  /* the AI result opens as a full-height sheet */
+  .aipop{position:fixed;inset:0;max-height:none;border-radius:0;border:0;z-index:55;padding:calc(12px + env(safe-area-inset-top,0px)) 14px calc(16px + env(safe-area-inset-bottom,0px))}
+  .aipop-head{position:sticky;top:-12px;background:var(--panel);padding:4px 0 8px;z-index:1}
+  .aipop-head .ibtn{border-color:var(--line-2)}
+  /* one view at a time */
+  .ws,.ws.nobrowser{display:block;position:relative}
+  .ws>.center,.ws>.browser{position:absolute;inset:0}
+  .vsplit,.hsplit,.viewbar,.dtabs,#viewDesk,#browserClose{display:none!important}
+  .browser{display:none;width:auto;box-shadow:none;border:0;visibility:visible!important}
+  .app[data-mtab="sounds"] .browser{display:flex}
+  .app[data-mtab="sounds"] .center{display:none}
+  .center,.center.nodock{display:flex;flex-direction:column}
+  .center .view{flex:1;min-height:0}
+  .center .dock,.center.nodock .dock{display:flex;flex-direction:column;flex:1;min-height:0}
+  .dock .dbody{flex:1;min-height:0}
+  .app[data-mtab="tracks"]:not([data-msheet]) .center .dock{display:none}
+  .app:not([data-mtab="tracks"]) .center .view{display:none}
+  .app[data-mtab="tracks"] #viewArrange{display:block}
+  .pnl.float{position:absolute!important;inset:0!important;width:auto!important;height:auto!important;border-radius:0;resize:none;min-width:0;max-width:none;max-height:none;box-shadow:none;border:0}
+  .pnl .phead{display:none!important}
+  /* the pattern editor opens over the tracks as a full-height sheet */
+  .app[data-msheet] .center .dock{position:fixed;inset:0;z-index:45;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  .app[data-msheet] .msheet-head{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+  .msheet-head b{font-family:var(--display);font-size:1rem}
+  .msheet-head .btn{min-height:40px}
+  /* tracks: the song fits the width better, mixing lives in the Mixer tab */
+  .arr{min-width:calc(var(--hdw) + 8 * 60px)}
+  .thead .tknobs,.thead .tmini .fxn,.tbtns .ms.l{display:none!important}
+  .thead{grid-template-columns:4px minmax(0,1fr)}
+  .row,.addrow{height:64px;min-height:64px}
+  .cell-add{border-color:color-mix(in srgb,var(--line-2) 60%,transparent);color:var(--fg-3)}
+  .ms{min-width:30px;min-height:30px}
+  #viewHint{display:none}
+  .pe-steps{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .steps-n{display:none}
+  .pe-steps button:nth-child(4n+1){box-shadow:inset 0 0 0 1px var(--line-2)}
+  .board{align-items:center}
+  .pedal{width:176px}
+  .pedal .fsw{width:48px;height:48px}
+  .pedal .px{width:32px;height:32px}
+  .pedal .opts button{min-height:32px;padding:4px 10px;font-size:.72rem}
+  .snd .acts{opacity:1;gap:6px}
+  .snd .acts button{width:40px;height:40px}
+  .pbar{gap:8px;padding:8px 10px}
+  .pbar .btn,.pbar .sel,.pbar select{min-height:40px}
+  .piano{height:min(46vh,260px)}
+  .blist{padding-bottom:12px}
+  .bsearch input{font-size:16px}
+  /* bottom tab bar */
+  .mtabs{display:grid;grid-template-columns:repeat(5,1fr);background:var(--panel);border-top:1px solid var(--line);padding:0 4px env(safe-area-inset-bottom,0px);position:relative;z-index:30}
+  .mtabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:56px;border:0;background:transparent;color:var(--fg-2);font-size:.7rem;font-weight:500;padding:6px 0 4px}
+  .mtabs button .ico{width:22px;height:22px}
+  .mtabs button[aria-selected="true"]{color:var(--accent)}
+  .mtabs button[aria-selected="true"] .ico{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--accent) 60%,transparent))}
+  .toast{bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+  .drawer{width:100%;border-left:0}
+  .set-grid{grid-template-columns:1fr!important}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -511,6 +609,7 @@ p{margin:0}
       <div class="view" id="viewDesk" hidden><div class="desk" id="desk"></div></div>
       <div class="hsplit" id="dockSplit" role="separator" aria-orientation="horizontal" aria-label="Resize panels"></div>
       <div class="dock" id="dock">
+        <div class="msheet-head" id="msheetHead"><button class="btn" id="msheetClose" type="button"><svg class="ico" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>Tracks</button><b id="msheetTitle">Pattern</b><span class="sp"></span></div>
         <div class="dtabs" role="tablist" aria-label="Panels" id="dockTabs">
           <button class="dt" type="button" role="tab" data-panel="pattern" aria-selected="true">Pattern</button>
           <button class="dt" type="button" role="tab" data-panel="fx" aria-selected="false">Pedalboard</button>
@@ -554,6 +653,13 @@ p{margin:0}
       </div>
     </section>
   </main>
+  <nav class="mtabs" id="mtabs" role="tablist" aria-label="Studio views">
+    <button type="button" role="tab" data-mtab="tracks" aria-selected="true"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h10M3 12h16M3 18h7"/></svg><span>Tracks</span></button>
+    <button type="button" role="tab" data-mtab="mixer" aria-selected="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v18M12 3v18M18 3v18"/><rect x="4" y="13" width="4" height="3" rx="1"/><rect x="10" y="6" width="4" height="3" rx="1"/><rect x="16" y="10" width="4" height="3" rx="1"/></svg><span>Mixer</span></button>
+    <button type="button" role="tab" data-mtab="pedals" aria-selected="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><circle cx="12" cy="9" r="2.5"/><circle cx="12" cy="17" r="1.5"/></svg><span>Pedals</span></button>
+    <button type="button" role="tab" data-mtab="sounds" aria-selected="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg><span>Sounds</span></button>
+    <button type="button" role="tab" data-mtab="keys" aria-selected="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5v9M12 5v9M16 5v9M8 14v5M12 14v5M16 14v5"/></svg><span>Keys</span></button>
+  </nav>
 
   <footer class="status">
     <span id="exportState">Renders offline at full quality, packed in a .zip with the WAV inside.</span>
@@ -1296,25 +1402,31 @@ try{const sv=JSON.parse(localStorage.getItem("loopwright-layout")||"{}");for(con
 if((typeof window!=="undefined"&&window.innerWidth||1200)<=760)layout.browser=false;
 function saveLayout(){layout.v=2;try{localStorage.setItem("loopwright-layout",JSON.stringify(layout));}catch(e){}}
 const ws=$("workspace"),center=$("center"),dockBody=$("dockBody");
+// phones get one view at a time and a bottom tab bar instead of docks and floating panels
+const phoneMQ=window.matchMedia?window.matchMedia("(max-width:760px)"):null;
+function isPhone(){return !!(phoneMQ&&phoneMQ.matches);}
+let mtab="tracks";
 function wsRect(){const r=ws.getBoundingClientRect?ws.getBoundingClientRect():null;return r&&r.width?r:{left:0,top:0,width:1200,height:700};}
 function applyLayout(){
+  const phone=isPhone(),fl=phone?{}:layout.floats;
+  if(phone&&layout.browser){layout.browser=false;mtab="sounds";paintMTab();}
   ws.classList.toggle("nobrowser",!layout.browser);document.documentElement.style.setProperty?.("--bw",clamp(layout.bw,200,460)+"px");document.documentElement.style.setProperty?.("--bh",clamp(layout.bh,120,900)+"px");
   center.classList.toggle("nodock",!layout.dock);$("browserBtn").classList.toggle("on",layout.browser);$("browserBtn").setAttribute("aria-pressed",layout.browser);
   $("viewArrange").hidden=layout.view!=="arrange";$("viewDesk").hidden=layout.view!=="desk";
   document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-selected",b.dataset.view===layout.view));
   $("viewHint").textContent=layout.view==="desk"?"Drag units by their name to rearrange the desk. Turn knobs by dragging up and down.":"Click an empty bar to add a clip. Double-click a clip to remove it.";
-  if(layout.floats[layout.tab]||!PANELS.includes(layout.tab))layout.tab=PANELS.find(p=>!layout.floats[p])||"pattern";
+  if(fl[layout.tab]||!PANELS.includes(layout.tab))layout.tab=PANELS.find(p=>!fl[p])||"pattern";
   const r=wsRect();let z=0;
-  for(const id of PANELS){const el=$("pnl-"+id),f=layout.floats[id];
+  for(const id of PANELS){const el=$("pnl-"+id),f=fl[id];
     if(f){if(el.parentElement!==ws)ws.appendChild(el);el.classList.add("float");el.hidden=false;
       const w=clamp(f.w||640,300,Math.max(300,r.width-8)),hh=clamp(f.h||320,180,Math.max(180,r.height-8));
       el.style.width=w+"px";el.style.height=hh+"px";el.style.left=clamp(f.x||0,0,Math.max(0,r.width-w))+"px";el.style.top=clamp(f.y||0,0,Math.max(0,r.height-40))+"px";el.style.zIndex=20+(++z);}
     else{if(el.parentElement!==dockBody)dockBody.appendChild(el);el.classList.remove("float","front");el.style.cssText="";el.hidden=id!==layout.tab;}}
-  const allFloat=PANELS.every(p=>layout.floats[p]);
-  document.querySelectorAll("#dockTabs .dt").forEach(b=>{const id=b.dataset.panel;b.setAttribute("aria-selected",id===layout.tab&&!allFloat);b.classList.toggle("floating",!!layout.floats[id]);b.title=layout.floats[id]?PANEL_NAME[id]+" is floating. Click to dock it again.":PANEL_NAME[id];});
+  const allFloat=PANELS.every(p=>fl[p]);
+  document.querySelectorAll("#dockTabs .dt").forEach(b=>{const id=b.dataset.panel;b.setAttribute("aria-selected",id===layout.tab&&!allFloat);b.classList.toggle("floating",!!fl[id]);b.title=fl[id]?PANEL_NAME[id]+" is floating. Click to dock it again.":PANEL_NAME[id];});
   $("popOutBtn").disabled=allFloat;$("layoutName").textContent=layout.name||"Custom";
 }
-function showPanel(id){if(layout.floats[id]){front($("pnl-"+id));return;}layout.tab=id;layout.dock=true;applyLayout();saveLayout();}
+function showPanel(id){if(isPhone()){phonePanel(id);return;}if(layout.floats[id]){front($("pnl-"+id));return;}layout.tab=id;layout.dock=true;applyLayout();saveLayout();}
 function front(el){document.querySelectorAll(".pnl.float").forEach(x=>{x.classList.remove("front");});el.classList.add("front");}
 function popOut(id){const r=wsRect(),n=Object.keys(layout.floats).length;const w=Math.min(720,r.width-40),hh=Math.min(id==="mixer"?380:330,r.height-60);
   layout.floats[id]={x:Math.max(8,r.width-w-24-n*28),y:16+n*28,w,h:hh};layout.name="Custom";applyLayout();saveLayout();front($("pnl-"+id));}
@@ -1398,6 +1510,25 @@ function handleShortcut(e){
 window.addEventListener("resize",()=>{if(Object.keys(layout.floats).length)applyLayout();});
 
 
+/* ---------- phone: bottom tabs, one view at a time, sheets ---------- */
+const MTAB_PANEL={mixer:"mixer",pedals:"fx",keys:"keys"};
+function paintMTab(){const app=$("app");app.dataset.mtab=mtab;document.querySelectorAll("#mtabs [data-mtab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.mtab===mtab));}
+function closeMSheet(){delete $("app").dataset.msheet;}
+function setMTab(id){mtab=id;closeMSheet();const p=MTAB_PANEL[id];
+  if(p){layout.tab=p;layout.dock=true;}
+  if(id==="sounds"&&btab==="fx")btab="sounds";
+  if(id==="pedals"&&!selTrack()&&state.tracks[0])selId=state.tracks[0].id;
+  paintMTab();applyLayout();if(id==="sounds")renderSounds();else renderTracks();
+  const sc=id==="sounds"?$("sounds"):p?$("pnl-"+p).querySelector(".pbody"):$("viewArrange");if(sc)sc.scrollTop=0;}
+function openMSheet(id){layout.tab=id;layout.dock=true;if(mtab!=="tracks"){mtab="tracks";paintMTab();}
+  $("app").dataset.msheet=id;$("msheetTitle").textContent=PANEL_NAME[id];applyLayout();renderTracks();}
+function phonePanel(id){if(id==="pattern")openMSheet("pattern");else setMTab(id==="fx"?"pedals":id==="mixer"?"mixer":id==="keys"?"keys":"tracks");}
+document.querySelectorAll("#mtabs [data-mtab]").forEach(b=>b.onclick=()=>setMTab(b.dataset.mtab));
+$("msheetClose").onclick=()=>{closeMSheet();applyLayout();};
+function onPhoneChange(){if(isPhone()){layout.view="arrange";paintMTab();}else{closeMSheet();delete $("app").dataset.mtab;}applyLayout();}
+if(phoneMQ){phoneMQ.addEventListener?phoneMQ.addEventListener("change",onPhoneChange):phoneMQ.addListener&&phoneMQ.addListener(onPhoneChange);}
+if(isPhone()){layout.view="arrange";paintMTab();}
+
 /* ---------- describe: keyword matcher ---------- */
 const GENRES={
   lofi:{bpm:84,swing:.18,kick:[0,7,10],snare:[4,12],hat:[0,2,4,6,8,10,12,14],bass:{0:0,3:0,8:-4,11:-2},pad:true,keys:{2:7,6:3,10:5,14:3},lofi:true},
@@ -1475,7 +1606,7 @@ Reply with JSON only, no prose and no code fence:
 }
 let sampleFn=null,ctl=null;
 (async()=>{try{sampleFn=await window.claude?.use?.("sample");}catch(e){sampleFn=null;}
-  $("engineNote").textContent=sampleFn?"Claude arranges it. Only sound names and lengths are sent, never the audio.":"AI arranging opens soon. For now a built-in keyword matcher arranges your sounds.";})();
+  $("engineNote").textContent=sampleFn?"Claude arranges it. Only sound names and lengths are sent, never the audio.":"The AI producer is not switched on here yet. A keyword matcher stands in: name a style (lo-fi, trap, house, ambient), a tempo, or words like dark, dreamy, chop or reverse.";})();
 function applyPlan(p){
   if(!p||!Array.isArray(p.tracks))throw new Error("no tracks");
   const tracks=[];for(const pt of p.tracks.slice(0,10)){const snd=soundById(pt.sound);if(!snd)continue;
@@ -1493,7 +1624,7 @@ function applyPlan(p){
   renderTracks();
 }
 function showResult(txt,kind){const r=$("result");r.hidden=false;r.dataset.kind=kind||"ok";r.textContent=txt;}
-const ERR={not_granted:"You declined Claude for this page",rate_limited:"Claude is busy for a moment",invalid_json:"Claude's answer wasn't usable",session_expired:"your session expired",sampling_disabled:"Claude is switched off here"};
+const ERR={not_granted:"You declined Claude for this page",rate_limited:"Claude is busy for a moment",invalid_json:"Claude's answer wasn't usable",session_expired:"your session expired",sampling_disabled:"Claude is switched off here",sign_in:"Sign in (top right) to use the AI producer",ai_not_connected:"The AI isn't connected yet",ai_billing:"The AI service is out of Anthropic credit right now",no_credits:"You're out of credits for this mode",daily_limit:"You've hit today's limit of AI prompts",busy:"Claude is busy for a moment",refused:"Claude wouldn't arrange that one",too_long:"This song is too big to send to the AI in one go",network:"The AI couldn't be reached (check your connection)",server:"Claude couldn't answer"};
 $("askBtn").onclick=async()=>{
   const text=$("prompt").value.trim();if(!text){$("prompt").focus();return;}
   ctx.resume();
@@ -1618,7 +1749,7 @@ function showSettings(){$("setKey").value=String(settings.key);$("setScale").val
   $("setLimiter").value=settings.limiter;$("setMetro").checked=settings.metro;$("setCountIn").checked=settings.countIn;$("setBars").value=String(settings.exportBars);$("setBits").value=String(settings.bits);$("setRate").value=String(settings.rate);
   $("metroBtn").classList.toggle("on",!!settings.metro);$("metroBtn").setAttribute("aria-pressed",!!settings.metro);
   $("setMode").value=settings.mode;$("setCap").value=settings.cap;$("setTheme").value=settings.theme;
-  $("setModeLbl").textContent=MODES[settings.mode]+(MODE_MAX[settings.mode]>settings.cap?". Over your cap, so a real run would ask first.":". Free in this demo.");
+  $("setModeLbl").textContent=MODES[settings.mode]+(MODE_MAX[settings.mode]>settings.cap?". Over your cap, so a run asks first.":(window.LW_LIVE?". Charged from your credits.":". Free in this demo."));
   $("exportState").textContent=`Renders ${settings.exportBars} bars offline as a ${settings.bits}-bit, ${settings.rate===48000?"48":"44.1"} kHz WAV, packed in a .zip.`;
   $("setAudio").textContent=`${(SR/1000).toFixed(1)} kHz`+(ctx.baseLatency?`, ${Math.round(ctx.baseLatency*1000)} ms`:"");}
 function changed(){saveSettings();live.applyMaster();applyTheme();showSettings();}
@@ -1765,7 +1896,9 @@ function renderOutcome(p,src,mode,notes,changes){
   let act="";
   if(mode==="suggest")act=`<div class="ask-row"><span class="small muted">Suggest only: nothing changed yet.</span><button type="button" class="btn primary tiny" data-ai="use">Use this</button><button type="button" class="btn tiny ghost" data-ai="discard">Discard</button></div>`;
   else if(mode==="ask")act=`<div class="ask-row"><span class="small muted">Previewing. Keep it?</span><button type="button" class="btn primary tiny" data-ai="keep">Keep</button><button type="button" class="btn tiny ghost" data-ai="undo">Undo</button></div>`;
-  showAi(`<div>${esc(src)}: ${esc(p.summary||"Arranged.")}</div>${tk}${ex}${nt}${lyr}${act}`,"ok");
+  const same=changes.length===1&&changes[0]==="No changes"?`<div class="small muted">That matches the song that's already loaded, so nothing changed. Try another style (house, trap, ambient, drill) or a detail like "faster", "darker" or "reverse my vocal".</div>`:"";
+  const noAi=src==="Keyword matcher"?`<div class="small muted">The AI producer isn't switched on in this version yet, so a simple keyword matcher made this from the words you typed.</div>`:"";
+  showAi(`<div>${esc(src)}: ${esc(p.summary||"Arranged.")}</div>${noAi}${same}${tk}${ex}${nt}${lyr}${act}`,"ok");
 }
 let lastText="",lastSrc="";
 function present(i){activeTake=i;const p=takes[i];if(!p)return;const before=pending?pending.before:snapOf();
@@ -1849,7 +1982,7 @@ function renderAi(){if(!$("aiPers"))return;
   const nl=state.tracks.filter(t=>t.locked).length;$("aiLockLbl").textContent=nl?`${nl} protected. Use Protect on any track.`:"Use Protect on any track to lock it";
   $("aiBuilt").value=ai.builtins;$("aiBuiltLbl").textContent=BUILT_HINT[ai.builtins];$("aiLyrics").checked=ai.lyrics;$("aiSnap").checked=ai.snapshots;
   $("aiBud").value=ai.budget;$("aiBudLbl").textContent=ai.budget>0?`${usage.used} of ${ai.budget} used this month${usage.used>=ai.budget*.8?". Nearly at the limit.":""}`:"No monthly limit";
-  $("aiLocal").checked=ai.localOnly;$("aiLocalLbl").textContent=ai.localOnly?"Audio never leaves this computer":"Cloud backup comes with accounts. Nothing is uploaded in this demo.";}
+  $("aiLocal").checked=ai.localOnly;$("aiLocalLbl").textContent=ai.localOnly?"Audio never leaves this computer":(window.LW_LIVE?"Your audio stays on this device. Nothing is uploaded.":"Cloud backup comes with accounts. Nothing is uploaded in this demo.");}
 const bindAi=(id,key,parse,ev="change")=>{$(id)["on"+ev]=()=>{ai[key]=parse($(id));saveAi();renderAi();};};
 bindAi("aiPers","personality",el=>PERSONAS[el.value]?el.value:"balanced");
 bindAi("aiCre","creativity",el=>clamp(Math.round(+el.value)||0,0,100),"input");
