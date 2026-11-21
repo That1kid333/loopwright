@@ -1475,7 +1475,7 @@ Reply with JSON only, no prose and no code fence:
 }
 let sampleFn=null,ctl=null;
 (async()=>{try{sampleFn=await window.claude?.use?.("sample");}catch(e){sampleFn=null;}
-  $("engineNote").textContent=sampleFn?"Claude arranges it. Only sound names and lengths are sent, never the audio.":"AI arranging opens soon. For now a built-in keyword matcher arranges your sounds.";})();
+  $("engineNote").textContent=sampleFn?"Claude arranges it. Only sound names and lengths are sent, never the audio.":"The AI producer is not switched on here yet. A keyword matcher stands in: name a style (lo-fi, trap, house, ambient), a tempo, or words like dark, dreamy, chop or reverse.";})();
 function applyPlan(p){
   if(!p||!Array.isArray(p.tracks))throw new Error("no tracks");
   const tracks=[];for(const pt of p.tracks.slice(0,10)){const snd=soundById(pt.sound);if(!snd)continue;
@@ -1765,7 +1765,9 @@ function renderOutcome(p,src,mode,notes,changes){
   let act="";
   if(mode==="suggest")act=`<div class="ask-row"><span class="small muted">Suggest only: nothing changed yet.</span><button type="button" class="btn primary tiny" data-ai="use">Use this</button><button type="button" class="btn tiny ghost" data-ai="discard">Discard</button></div>`;
   else if(mode==="ask")act=`<div class="ask-row"><span class="small muted">Previewing. Keep it?</span><button type="button" class="btn primary tiny" data-ai="keep">Keep</button><button type="button" class="btn tiny ghost" data-ai="undo">Undo</button></div>`;
-  showAi(`<div>${esc(src)}: ${esc(p.summary||"Arranged.")}</div>${tk}${ex}${nt}${lyr}${act}`,"ok");
+  const same=changes.length===1&&changes[0]==="No changes"?`<div class="small muted">That matches the song that's already loaded, so nothing changed. Try another style (house, trap, ambient, drill) or a detail like "faster", "darker" or "reverse my vocal".</div>`:"";
+  const noAi=src==="Keyword matcher"?`<div class="small muted">The AI producer isn't switched on in this version yet, so a simple keyword matcher made this from the words you typed.</div>`:"";
+  showAi(`<div>${esc(src)}: ${esc(p.summary||"Arranged.")}</div>${noAi}${same}${tk}${ex}${nt}${lyr}${act}`,"ok");
 }
 let lastText="",lastSrc="";
 function present(i){activeTake=i;const p=takes[i];if(!p)return;const before=pending?pending.before:snapOf();

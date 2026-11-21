@@ -3,7 +3,7 @@ import sys, re
 src, out, mode = sys.argv[1], sys.argv[2], sys.argv[3]
 frag = open(src).read()
 frag = frag.replace('"Claude isn\'t available in this view, so a keyword matcher arranges it."',
-                    '"AI arranging opens soon. For now a built-in keyword matcher arranges your sounds."')
+                    '"The AI producer is not switched on here yet. A keyword matcher stands in: name a style (lo-fi, trap, house, ambient), a tempo, or words like dark, dreamy, chop or reverse."')
 frag = frag.replace("Open the page in claude.ai to export.", "Try exporting again.")
 frag = re.sub(r'<meta name="claude:[^>]*>\n?', '', frag)
 shim = """<script>
