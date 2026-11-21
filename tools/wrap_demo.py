@@ -9,6 +9,7 @@ frag = re.sub(r'<meta name="claude:[^>]*>\n?', '', frag)
 shim = """<script>
 /* Stand-alone shim: export saves through a normal download, and the AI producer
    calls Loopwright's own "arrange" server function with the signed-in user's session. */
+window.LW_LIVE = true;
 (function () {
   var FN = "https://vvllgdrpnieorcpweurz.supabase.co/functions/v1/arrange";
   var KEY = "sb_publishable_6iCD4SBhUOXgOoyyIT3qZA__dTbzZZF";

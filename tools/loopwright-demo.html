@@ -454,7 +454,16 @@ select.sel{padding:4px 6px;border:1px solid var(--line-2);border-radius:7px;back
   .cell-add{border-color:color-mix(in srgb,var(--line-2) 60%,transparent);color:var(--fg-3)}
   .ms{min-width:30px;min-height:30px}
   #viewHint{display:none}
-  .pe-steps,.steps-n{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .pe-steps{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .steps-n{display:none}
+  .pe-steps button:nth-child(4n+1){box-shadow:inset 0 0 0 1px var(--line-2)}
+  .board{align-items:center}
+  .pedal{width:176px}
+  .pedal .fsw{width:48px;height:48px}
+  .pedal .px{width:32px;height:32px}
+  .pedal .opts button{min-height:32px;padding:4px 10px;font-size:.72rem}
+  .snd .acts{opacity:1;gap:6px}
+  .snd .acts button{width:40px;height:40px}
   .pbar{gap:8px;padding:8px 10px}
   .pbar .btn,.pbar .sel,.pbar select{min-height:40px}
   .piano{height:min(46vh,260px)}
@@ -1690,7 +1699,7 @@ function showSettings(){$("setKey").value=String(settings.key);$("setScale").val
   $("setLimiter").value=settings.limiter;$("setMetro").checked=settings.metro;$("setCountIn").checked=settings.countIn;$("setBars").value=String(settings.exportBars);$("setBits").value=String(settings.bits);$("setRate").value=String(settings.rate);
   $("metroBtn").classList.toggle("on",!!settings.metro);$("metroBtn").setAttribute("aria-pressed",!!settings.metro);
   $("setMode").value=settings.mode;$("setCap").value=settings.cap;$("setTheme").value=settings.theme;
-  $("setModeLbl").textContent=MODES[settings.mode]+(MODE_MAX[settings.mode]>settings.cap?". Over your cap, so a real run would ask first.":". Free in this demo.");
+  $("setModeLbl").textContent=MODES[settings.mode]+(MODE_MAX[settings.mode]>settings.cap?". Over your cap, so a run asks first.":(window.LW_LIVE?". Charged from your credits.":". Free in this demo."));
   $("exportState").textContent=`Renders ${settings.exportBars} bars offline as a ${settings.bits}-bit, ${settings.rate===48000?"48":"44.1"} kHz WAV, packed in a .zip.`;
   $("setAudio").textContent=`${(SR/1000).toFixed(1)} kHz`+(ctx.baseLatency?`, ${Math.round(ctx.baseLatency*1000)} ms`:"");}
 function changed(){saveSettings();live.applyMaster();applyTheme();showSettings();}
@@ -1923,7 +1932,7 @@ function renderAi(){if(!$("aiPers"))return;
   const nl=state.tracks.filter(t=>t.locked).length;$("aiLockLbl").textContent=nl?`${nl} protected. Use Protect on any track.`:"Use Protect on any track to lock it";
   $("aiBuilt").value=ai.builtins;$("aiBuiltLbl").textContent=BUILT_HINT[ai.builtins];$("aiLyrics").checked=ai.lyrics;$("aiSnap").checked=ai.snapshots;
   $("aiBud").value=ai.budget;$("aiBudLbl").textContent=ai.budget>0?`${usage.used} of ${ai.budget} used this month${usage.used>=ai.budget*.8?". Nearly at the limit.":""}`:"No monthly limit";
-  $("aiLocal").checked=ai.localOnly;$("aiLocalLbl").textContent=ai.localOnly?"Audio never leaves this computer":"Cloud backup comes with accounts. Nothing is uploaded in this demo.";}
+  $("aiLocal").checked=ai.localOnly;$("aiLocalLbl").textContent=ai.localOnly?"Audio never leaves this computer":(window.LW_LIVE?"Your audio stays on this device. Nothing is uploaded.":"Cloud backup comes with accounts. Nothing is uploaded in this demo.");}
 const bindAi=(id,key,parse,ev="change")=>{$(id)["on"+ev]=()=>{ai[key]=parse($(id));saveAi();renderAi();};};
 bindAi("aiPers","personality",el=>PERSONAS[el.value]?el.value:"balanced");
 bindAi("aiCre","creativity",el=>clamp(Math.round(+el.value)||0,0,100),"input");
