@@ -98,9 +98,10 @@ window.LW_DEMO = true;
       var res = await window.__lw.song.set(pick);
       if (res && res.dropped) status(res.dropped + (res.dropped === 1 ? " track" : " tracks") + " used a sound that couldn't be loaded", true);
       else status(res && res.ok ? "Your saved song is back" : "Couldn't open your saved song", !(res && res.ok));
-    } else status("Saved to your account");
+    }
     C.last = songNow();
-    if (pick && lT > dbT) { C.dirty = true; }
+    if ((pick && lT > dbT) || !row) { C.dirty = true; pushSong(); }
+    else if (!pick) status("Saved to your account");
   }
   async function cloudStart() {
     if (C.started || !window.__lw || !window.__lw.song) return;
