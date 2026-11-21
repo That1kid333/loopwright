@@ -48,7 +48,8 @@ function setMode(m){mode=m;$("tabIn").classList.toggle("on",m==="in");$("tabUp")
  $("nameRow").hidden=m!=="up";$("termsRow").hidden=m!=="up";$("submit").textContent=m==="up"?"Create account":"Sign in";
  $("password").autocomplete=m==="up"?"new-password":"current-password";$("forgot").hidden=m==="up";show($("msg"));}
 $("tabIn").onclick=()=>setMode("in");$("tabUp").onclick=()=>setMode("up");setMode(mode);
-LW.user().then(u=>{if(u)location.replace("/account/");});
+function lwNext(){const n=new URLSearchParams(location.search).get("next")||"";return /^\/(?!\/)[\w\/-]*$/.test(n)?n:"/account/";}
+LW.user().then(u=>{if(u)location.replace(lwNext());});
 $("authForm").onsubmit=async e=>{e.preventDefault();const email=$("email").value.trim(),password=$("password").value;
  if(!email||!password){show($("msg"),"Enter your email and password.","err");return;}
  const b=$("submit");b.disabled=true;
@@ -58,10 +59,10 @@ $("authForm").onsubmit=async e=>{e.preventDefault();const email=$("email").value
    if(!$("terms").checked){show($("msg"),"Please confirm you'll only upload sounds you have the rights to.","err");return;}
    const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+"/account/",data:{display_name:$("name").value.trim()||undefined}}});
    if(error)throw error;
-   if(data.session){location.replace("/account/");}
+   if(data.session){location.replace(lwNext());}
    else show($("msg"),"Check your email to confirm your account, then sign in.","ok");
   }else{
-   const {error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;location.replace("/account/");
+   const {error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;location.replace(lwNext());
   }
  }catch(err){show($("msg"),err.message||"Something went wrong. Try again.","err");}
  finally{b.disabled=false;}
