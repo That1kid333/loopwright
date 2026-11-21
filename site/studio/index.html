@@ -2171,6 +2171,7 @@ function songGet(){const snap=snapOf(),libs={};
   return Object.assign({v:1,libs},snap);}
 async function songSet(sg){if(!sg||!Array.isArray(sg.tracks))return{ok:false,dropped:0};const libs=sg.libs||{};
   for(const t of sg.tracks){if(soundById(t.soundId))continue;const L=libs[t.soundId];if(!L)continue;
+    if(L.own){const have=sounds.find(x=>x.cloudId===L.cloudId);if(have){t.soundId=have.id;continue;}}
     try{let buf=null;
       if(L.own&&typeof window.lwLoadOwnSound==="function")buf=await window.lwLoadOwnSound(L.cloudId,ctx);
       else if(!L.own&&LIB)buf=libTrim(await LIB.render(L.id,L.kit?{hit:L.hit??0,seconds:3}:{note:libNote({category:L.cat,key_low:L.lo,key_high:L.hi}),seconds:3.2}));
