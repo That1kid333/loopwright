@@ -45,6 +45,8 @@ function parsePlan(text: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  // A plain GET is a health check: it says whether the AI key is set, never the key itself.
+  if (req.method === "GET") return json({ ok: true, ai: Deno.env.get("ANTHROPIC_API_KEY") ? "connected" : "missing" });
   if (req.method !== "POST") return json({ error: "bad_request", message: "Use POST." }, 405);
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
@@ -118,6 +120,11 @@ Deno.serve(async (req) => {
   } catch (e) {
     await finish(false);
     const status = (e as { status?: number })?.status;
+    const apiErr = (e as { error?: { error?: { type?: string; message?: string } } })?.error?.error;
+    // Log what went wrong (status, type, Anthropic's message). Never the key or the prompt.
+    console.error("anthropic_error", status ?? "none", apiErr?.type ?? (e as Error)?.name, (apiErr?.message ?? (e as Error)?.message ?? "").slice(0, 300));
+    if (/credit balance/i.test(apiErr?.message ?? "")) return json({ error: "ai_billing", message: "The Anthropic account behind the AI is out of credit." }, 503);
+    if (status === 404) return json({ error: "server", message: "That AI model isn't available to this key." }, 502);
     if (status === 401 || status === 403) return json({ error: "ai_not_connected", message: "The AI key isn't working." }, 503);
     if (status === 429 || status === 529) return json({ error: "busy", message: "Claude is busy for a moment. Try again." }, 503);
     return json({ error: "server", message: "Claude couldn't answer. Nothing was charged." }, 502);
