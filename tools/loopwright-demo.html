@@ -2027,12 +2027,13 @@ function songGet(){const snap=snapOf(),libs={};
     if(snd.lib)libs[snd.id]=Object.assign({name:snd.name,group:snd.group},snd.lib);else if(snd.cloudId)libs[snd.id]={own:true,cloudId:snd.cloudId,name:snd.name,group:snd.group};}
   return Object.assign({v:1,libs},snap);}
 async function songSet(sg){if(!sg||!Array.isArray(sg.tracks))return{ok:false,dropped:0};const libs=sg.libs||{};
-  for(const t of sg.tracks){if(soundById(t.soundId))continue;const L=libs[t.soundId];if(!L)continue;
-    if(L.own){const have=sounds.find(x=>x.cloudId===L.cloudId);if(have){t.soundId=have.id;continue;}}
-    try{let buf=null;
-      if(L.own&&typeof window.lwLoadOwnSound==="function")buf=await window.lwLoadOwnSound(L.cloudId,ctx);
-      else if(!L.own&&LIB)buf=libTrim(await LIB.render(L.id,L.kit?{hit:L.hit??0,seconds:3}:{note:libNote({category:L.cat,key_low:L.lo,key_high:L.hi}),seconds:3.2}));
-      if(buf&&!soundById(t.soundId)){const snd=addSound(L.name,L.own?"yours":"free",buf,L.group);if(L.own){snd.id=t.soundId;snd.cloudId=L.cloudId;}else snd.lib={id:L.id,kit:L.kit,hit:L.hit,cat:L.cat,lo:L.lo,hi:L.hi};}}catch(e){}}
+  for(const t of sg.tracks){const L=libs[t.soundId];
+    if(L&&L.own){let have=sounds.find(x=>x.cloudId===L.cloudId);
+      if(!have&&typeof window.lwLoadOwnSound==="function"){try{const buf=await window.lwLoadOwnSound(L.cloudId,ctx);have=sounds.find(x=>x.cloudId===L.cloudId);if(!have&&buf){have=addSound(L.name,"yours",buf,L.group);have.cloudId=L.cloudId;}}catch(e){}}
+      t.soundId=have?have.id:"missing:"+L.cloudId;continue;}
+    if(soundById(t.soundId)||!L)continue;
+    try{const buf=LIB?libTrim(await LIB.render(L.id,L.kit?{hit:L.hit??0,seconds:3}:{note:libNote({category:L.cat,key_low:L.lo,key_high:L.hi}),seconds:3.2})):null;
+      if(buf&&!soundById(t.soundId)){const snd=addSound(L.name,"free",buf,L.group);snd.lib={id:L.id,kit:L.kit,hit:L.hit,cat:L.cat,lo:L.lo,hi:L.hi};}}catch(e){}}
   const keep=sg.tracks.filter(t=>soundById(t.soundId)&&Array.isArray(t.steps)&&Array.isArray(t.bars));
   if(!keep.length&&sg.tracks.length)return{ok:false,dropped:sg.tracks.length};
   restore({bpm:clamp(Math.round(Number(sg.bpm)||80),50,190),swing:clamp(Number(sg.swing)||0,0,.3),tracks:keep});
