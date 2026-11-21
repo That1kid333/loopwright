@@ -1,0 +1,1 @@
+-- Applied to the Loopwright project on 2026-11-21 as ai_runs_credits_and_limits: 200-credit signup grant, credit_balance, my_credit_balance, ai_begin_run (6 a minute, 300 a day, 4 at once, hold worst case), ai_finish_run (release hold, charge AI cost x 2.5). See the database for the full definitions.
