@@ -6,7 +6,7 @@
  * Accepts audio (WAV, MP3, M4A/AAC, AIFF, OGG, FLAC, WebM) and video (MP4, MOV, WebM, MKV...).
  * For video, the browser pulls the sound track out and saves it as a WAV, so no video is stored.
  *
- * Needs window.LW.sb (site/assets/app.js).
+ * Needs a Supabase client: LW.sb (website), LWA.sb (Mac app) or one it makes itself.
  *
  *   const s = await MySounds.add(file, { name: "My vocal", tags: ["vocal"], rightsConfirmed: true });
  *   const list = await MySounds.list();
@@ -24,7 +24,19 @@ window.MySounds = (function () {
   const EXT_TYPE = { wav: "audio/wav", mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", aif: "audio/aiff", aiff: "audio/aiff", ogg: "audio/ogg", oga: "audio/ogg", flac: "audio/flac" };
   const buffers = new Map();
 
-  function sb() { if (!window.LW || !window.LW.sb) throw new Error("Loopwright isn't connected on this page."); return window.LW.sb; }
+  // The website pages use LW.sb, the Mac app uses LWA.sb, the browser studio uses __lwsb.
+  function sb() {
+    const c = (window.LW && window.LW.sb) || (window.LWA && window.LWA.sb) || window.__lwsb;
+    if (c) return c;
+    if (window.supabase) {
+      window.__lwsb = window.supabase.createClient("https://vvllgdrpnieorcpweurz.supabase.co", "sb_publishable_6iCD4SBhUOXgOoyyIT3qZA__dTbzZZF",
+        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+      return window.__lwsb;
+    }
+    throw new Error("Loopwright isn't connected on this page.");
+  }
+  /** True when someone is signed in, so their sounds can be kept online. */
+  async function signedIn() { try { const { data } = await sb().auth.getSession(); return !!(data && data.session); } catch (e) { return false; } }
   async function uid() {
     const { data } = await sb().auth.getUser();
     if (!data || !data.user) throw new Error("Sign in to keep your own sounds.");
@@ -183,5 +195,5 @@ window.MySounds = (function () {
   /** File types the picker should accept. */
   const accept = "audio/*,video/*,.wav,.mp3,.m4a,.aac,.aif,.aiff,.ogg,.flac,.mp4,.mov,.m4v,.webm,.mkv";
 
-  return { add, list, load, buffer, update, rename, remove, usage, decode, toWav, accept };
+  return { add, list, load, buffer, update, rename, remove, usage, decode, toWav, accept, signedIn };
 })();

@@ -58,7 +58,7 @@ if mode == "web":
     bar = """<div class="hostbar" style="display:flex;align-items:center;gap:10px;margin-left:auto;font-size:.78rem;color:var(--fg-2);white-space:nowrap">
 <span class="hostnote" id="lwcred">Browser studio</span><a href="/signin/?next=/studio/" id="lwsign" style="color:var(--fg-1);text-decoration:none">Sign in</a><a href="/download/" class="hostnote" style="color:var(--accent);text-decoration:none;font-weight:600">Get the Mac app</a></div>"""
     # The free preset library: sounds made in code plus the recorded packs in Supabase storage.
-    head_extra = '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml"><script src="/assets/supabase.js"></script><script src="/assets/originals.js"></script><script src="/assets/library.js"></script>'
+    head_extra = '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml"><script src="/assets/supabase.js"></script><script src="/assets/originals.js"></script><script src="/assets/library.js"></script><script src="/assets/my-sounds.js"></script>'
     tail = """<script>
 (function(){var sign=document.getElementById("lwsign"),cred=document.getElementById("lwcred");
   async function paint(){var s=await window.lwSession();
@@ -71,7 +71,8 @@ if mode == "web":
 else:
     bar = """<div class="hostbar" id="lwbar" style="display:flex;align-items:center;gap:8px;margin-left:auto;font-size:.78rem;color:var(--fg-2);white-space:nowrap">
 <span id="lwwho"></span><a href="https://loopwright-studio.netlify.app/account/" target="_blank" style="color:var(--accent);text-decoration:none">Account</a><a href="#" id="lwout" style="color:var(--accent);text-decoration:none">Sign out</a></div>"""
-    head_extra = '<script src="supabase.js"></script><script src="auth.js"></script>'
+    # Same free library and online My sounds as the website (copies of site/assets/*.js in desktop/src).
+    head_extra = '<script src="supabase.js"></script><script src="auth.js"></script><script src="originals.js"></script><script src="library.js"></script><script src="my-sounds.js"></script>'
     tail = """<script>
 LWA.requireUser().then(function(u){ if(u) document.getElementById("lwwho").textContent = u.email; });
 document.getElementById("lwout").onclick = function(e){ e.preventDefault(); LWA.signOut(); };
