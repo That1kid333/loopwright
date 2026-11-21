@@ -92,7 +92,7 @@ p{margin:0}
 .btn.tiny{padding:2px 8px;font-size:.78rem;min-height:24px}
 .btn:disabled{opacity:.45;cursor:default}
 .btn.on{border-color:var(--accent);color:var(--accent)}
-.sel{padding:4px 6px;border:1px solid var(--line-2);border-radius:7px;background:var(--bg-2);max-width:15em}
+select.sel{padding:4px 6px;border:1px solid var(--line-2);border-radius:7px;background:var(--bg-2);max-width:15em}
 .ico{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .ibtn{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--fg-2)}
 .ibtn:hover{color:var(--fg);background:var(--panel-2);border-color:var(--line)}
@@ -481,7 +481,8 @@ p{margin:0}
   .app[data-mtab="sounds"] .center{display:none}
   .center,.center.nodock{display:flex;flex-direction:column}
   .center .view{flex:1;min-height:0}
-  .center .dock,.center.nodock .dock{display:grid;flex:1;min-height:0;grid-template-rows:auto auto 1fr}
+  .center .dock,.center.nodock .dock{display:flex;flex-direction:column;flex:1;min-height:0}
+  .dock .dbody{flex:1;min-height:0}
   .app[data-mtab="tracks"]:not([data-msheet]) .center .dock{display:none}
   .app:not([data-mtab="tracks"]) .center .view{display:none}
   .app[data-mtab="tracks"] #viewArrange{display:block}
