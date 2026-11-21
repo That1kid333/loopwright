@@ -678,7 +678,7 @@ select.sel{padding:4px 6px;border:1px solid var(--line-2);border-radius:7px;back
       <div class="drop" id="drop" hidden>
         <label class="btn primary" for="file"><svg class="ico" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Add your sounds</label>
         <input type="file" id="file" accept="audio/*,video/*,.wav,.mp3,.m4a,.aif,.aiff,.ogg,.flac,.mp4,.mov,.m4v,.webm" multiple hidden>
-        <span class="small muted">or drop audio files anywhere. They stay in this browser tab; nothing is uploaded.</span>
+        <span class="small muted">or drop audio or video files anywhere. When you're signed in, they're saved to your account.</span>
       </div>
       <div class="blist" id="sounds" role="list"></div>
     </aside>
@@ -2164,6 +2164,7 @@ function songGet(){const snap=snapOf(),libs={};
   return Object.assign({v:1,libs},snap);}
 async function songSet(sg){if(!sg||!Array.isArray(sg.tracks))return{ok:false,dropped:0};const libs=sg.libs||{};
   for(const t of sg.tracks){if(soundById(t.soundId))continue;const L=libs[t.soundId];if(!L)continue;
+    if(L.own){const have=sounds.find(x=>x.cloudId===L.cloudId);if(have){t.soundId=have.id;continue;}}
     try{let buf=null;
       if(L.own&&typeof window.lwLoadOwnSound==="function")buf=await window.lwLoadOwnSound(L.cloudId,ctx);
       else if(!L.own&&LIB)buf=libTrim(await LIB.render(L.id,L.kit?{hit:L.hit??0,seconds:3}:{note:libNote({category:L.cat,key_low:L.lo,key_high:L.hi}),seconds:3.2}));
