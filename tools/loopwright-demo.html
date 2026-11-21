@@ -136,6 +136,8 @@ p{margin:0}
 .drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--bg-2))}
 .blist{flex:1;overflow:auto;padding:4px 6px 12px;display:flex;flex-direction:column;gap:2px}
 .bgroup{padding:10px 6px 4px}
+.libbar{display:flex;gap:6px;padding:4px 4px 6px}.libbar select{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;background:var(--bg-2);color:var(--fg);padding:5px 6px;font:inherit;font-size:.78rem}
+.snd.lib{cursor:default}.snd.lib .sub{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.snd.libhit{margin-left:14px;padding:3px 6px}.snd.lib.open{background:var(--panel-2);border-color:var(--line)}
 .snd{display:grid;grid-template-columns:8px 1fr auto;align-items:center;gap:8px;padding:6px 6px;border-radius:8px;border:1px solid transparent;cursor:grab;user-select:none;-webkit-user-select:none}
 .snd:hover{background:var(--panel-2);border-color:var(--line)}
 .snd.dragging{opacity:.5}
@@ -468,6 +470,7 @@ p{margin:0}
       <div class="btabs" role="tablist" aria-label="Browser sections">
         <button type="button" role="tab" data-btab="sounds" aria-selected="true">Sounds</button>
         <button type="button" role="tab" data-btab="mine" aria-selected="false">My sounds</button>
+        <button type="button" role="tab" data-btab="lib" aria-selected="false" hidden>Library</button>
         <button type="button" role="tab" data-btab="fx" aria-selected="false">Pedals</button>
       </div>
       <label class="bsearch"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></svg><input type="search" id="bsearch" placeholder="Search" aria-label="Search the browser"></label>
@@ -1068,6 +1071,7 @@ function drawWave(cv,buf,color,ht){const dpr=window.devicePixelRatio||1,w=cv.cli
 function renderSounds(){fillLiveSelect();const box=$("sounds");box.innerHTML="";$("drop").hidden=btab!=="mine";
   document.querySelectorAll("[data-btab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.btab===btab));
   const q=bq.trim().toLowerCase();
+  if(btab==="lib"){renderLib(box,q);return;}
   if(btab==="fx"){box.appendChild(h("div","small muted","Drag a pedal onto a track, or press + to add it to the selected one."));let lastCat="";
     for(const id of PEDAL_ORDER){const P=PEDALS[id];if(q&&!(P.name+P.type+P.desc+P.cat).toLowerCase().includes(q))continue;if(P.cat!==lastCat){lastCat=P.cat;box.appendChild(h("div","bgroup label",escH(P.cat)));}
       const r=h("div","pedal-chip");r.style.setProperty("--pc",P.color);r.draggable=true;r.setAttribute("role","listitem");
@@ -1090,8 +1094,49 @@ function renderSounds(){fillLiveSelect();const box=$("sounds");box.innerHTML="";
       const rm=r.querySelector('[data-a="rm"]');if(rm)rm.onclick=()=>{const i=sounds.indexOf(s);sounds.splice(i,1);state.tracks=state.tracks.filter(t=>{if(t.soundId===s.id){live.drop(t.id);return false;}return true;});renderSounds();renderTracks();};
       box.appendChild(r);requestAnimationFrame(()=>drawWave(r.querySelector("canvas"),s.buffer,s.origin==="free"?cssVar("--fg-3"):cssVar("--yours"),14));}}
 }
+/* ---------- free library (site/assets/library.js + originals.js), when the page has it ---------- */
+const LIB=typeof window!=="undefined"?window.LoopwrightLibrary:null;
+let libCat="",libSeq=0,libOpen=null,libT=0;
+if(LIB){const b=document.querySelector('[data-btab="lib"]');if(b)b.hidden=false;}
+function libGroup(it){if(it.category==="Drums"||it.category==="Percussion")return"drums";if(it.category==="Bass")return"bass";if(it.category==="Vocals")return"vocal";if(it.category==="FX")return"";
+  if(it.category==="Keys"||/pad/i.test(it.subcategory||""))return"chords";return"melody";}
+function libNote(it){const lo=it.key_low??36,hi=it.key_high??96;let n=it.category==="Bass"?36:60;if(n<lo||n>hi)n=Math.min(hi,Math.max(lo,12*Math.round((lo+hi)/24)));return n;}
+function libTrim(buf){let end=0;for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);for(let i=d.length-1;i>end;i--)if(Math.abs(d[i])>0.0015){end=i;break;}}
+  const len=Math.max(64,Math.min(buf.length,end+Math.round(buf.sampleRate*0.02))),out=ctx.createBuffer(buf.numberOfChannels,len,buf.sampleRate);
+  for(let c=0;c<buf.numberOfChannels;c++)out.getChannelData(c).set(buf.getChannelData(c).subarray(0,len));return out;}
+async function libPlay(it,hit){ctx.resume();try{const p=await LIB.load(it.id,ctx);
+  if(p.kind==="kit")p.play(hit??0,105,0,{destination:live.master});else p.play(libNote(it),100,0,{duration:1.2,destination:live.master});}
+  catch(e){toast("Couldn't load that sound. Check your connection and try again.");}}
+async function libAdd(it,hit,hitName){ctx.resume();const name=it.name+(hitName?" "+hitName:"");
+  const id=name.toLowerCase().replace(/[^a-z0-9]+/g,"-"),had=soundById(id);if(had){addTrackFromSound(had);return;}
+  toast(`Loading ${name}…`);
+  try{const kit=it.kind==="kit",buf=libTrim(await LIB.render(it.id,kit?{hit:hit??0,seconds:3}:{note:libNote(it),seconds:3.2}));
+    const s=addSound(name,"free",buf,kit?(it.category==="FX"?"":"drums"):libGroup(it));renderSounds();addTrackFromSound(s);}
+  catch(e){toast("Couldn't load that sound. Check your connection and try again.");}}
+function libRow(it,cls,label,sub){const r=h("div","snd lib"+(cls?" "+cls:""));r.setAttribute("role","listitem");
+  r.innerHTML=`<span class="dot" style="background:${it.pack_id==="originals"?"var(--accent)":"var(--fg-3)"}"></span><span class="meta" style="display:block"><span class="name"></span>${sub!=null?'<span class="small muted sub"></span>':""}</span><span class="acts"><button type="button" data-a="play" title="Hear">${ICON.play}</button><button type="button" data-a="add" title="Add track">${ICON.plus}</button></span>`;
+  r.querySelector(".name").textContent=label;if(sub!=null)r.querySelector(".sub").textContent=sub;
+  r.querySelector('[data-a="play"]').setAttribute("aria-label","Hear "+label);r.querySelector('[data-a="add"]').setAttribute("aria-label",(it.kind==="kit"&&!cls?"Show the sounds in ":"Add a track with ")+label);return r;}
+async function renderLib(box,q){const seq=++libSeq;
+  const bar=h("div","libbar"),sel=h("select");sel.setAttribute("aria-label","Category");sel.innerHTML='<option value="">All categories</option>';bar.appendChild(sel);box.appendChild(bar);
+  LIB.categories().then(cs=>{if(seq!==libSeq)return;for(const c of cs){const o=h("option");o.value=c.category;o.textContent=`${c.category} (${c.count})`;sel.appendChild(o);}sel.value=libCat;}).catch(()=>{});
+  sel.onchange=()=>{libCat=sel.value;libOpen=null;renderSounds();};
+  const status=h("div","small muted","Searching the free library…");status.style.padding="2px 6px 6px";box.appendChild(status);
+  let res;try{res=await LIB.search(q,{category:libCat||undefined,limit:80});}catch(e){if(seq===libSeq)status.textContent="Couldn't reach the free library. Check your connection and try again.";return;}
+  if(seq!==libSeq)return;
+  status.textContent=res.items.length?`${res.items.length}${res.more?"+":""} free sounds, yours to use in any song. Press play to hear one, + to add it.`:"Nothing matches. Try another word, like piano, 808, strings or trap.";
+  for(const it of res.items){const kit=it.kind==="kit";
+    const sub=[it.subcategory||it.category,kit?`kit of ${it.zone_count}`:"",it.pack_id==="originals"?"made in code":""].filter(Boolean).join(" · ");
+    const r=libRow(it,"",it.name,sub);if(libOpen===it.id)r.classList.add("open");
+    r.querySelector('[data-a="play"]').onclick=()=>libPlay(it);
+    r.querySelector('[data-a="add"]').onclick=r.ondblclick=()=>{if(kit){libOpen=libOpen===it.id?null:it.id;renderSounds();}else libAdd(it);};
+    box.appendChild(r);
+    if(kit&&libOpen===it.id){try{const p=await LIB.load(it.id,ctx);if(seq!==libSeq)return;
+      for(const ht of p.hits){const hr=libRow(it,"libhit",ht.name,null);hr.querySelector('[data-a="play"]').onclick=()=>libPlay(it,ht.index);
+        hr.querySelector('[data-a="add"]').onclick=hr.ondblclick=()=>libAdd(it,ht.index,ht.name);box.appendChild(hr);}}catch(e){box.appendChild(h("div","small muted","Couldn't load this kit."));}}}
+}
 document.querySelectorAll("[data-btab]").forEach(b=>b.onclick=()=>{btab=b.dataset.btab;renderSounds();});
-$("bsearch").oninput=e=>{bq=e.target.value;renderSounds();};
+$("bsearch").oninput=e=>{bq=e.target.value;clearTimeout(libT);if(btab==="lib")libT=setTimeout(renderSounds,250);else renderSounds();};
 async function addFiles(files){ctx.resume();let ok=0;for(const f of files){try{const ab=await f.arrayBuffer();const buf=await new Promise((res,rej)=>{const p=ctx.decodeAudioData(ab,res,rej);if(p&&p.then)p.then(res,rej);});
     const name=f.name.replace(/\.[a-z0-9]+$/i,"");addSound(name,"yours",buf,/voc|vox|voice|sing|acap/i.test(name)?"vocal":"");ok++;}catch(e){toast(`Couldn't read ${f.name}. Try WAV or MP3.`);}}
   if(ok){btab="mine";layout.browser=true;applyLayout();renderSounds();toast(`Added ${ok} sound${ok>1?"s":""}. Drag them onto the timeline, or try Arrange.`);}}

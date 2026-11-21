@@ -24,7 +24,8 @@ if mode == "web":
     frag = frag.replace('<b>Loopwright</b></div>', '<b>Loopwright</b></a>', 1)
     bar = """<div class="hostbar" style="display:flex;align-items:center;gap:10px;margin-left:auto;font-size:.78rem;color:var(--fg-2);white-space:nowrap">
 <span class="hostnote">Browser studio</span><a href="/download/" style="color:var(--accent);text-decoration:none;font-weight:600">Get the Mac app</a></div>"""
-    head_extra = '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">'
+    # The free preset library: sounds made in code plus the recorded packs in Supabase storage.
+    head_extra = '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml"><script src="/assets/originals.js"></script><script src="/assets/library.js"></script>'
     tail = ""
 else:
     bar = """<div class="hostbar" id="lwbar" style="display:flex;align-items:center;gap:8px;margin-left:auto;font-size:.78rem;color:var(--fg-2);white-space:nowrap">
