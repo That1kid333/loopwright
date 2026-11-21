@@ -3,10 +3,12 @@
 <title>Account · Loopwright</title><meta name="description" content="Your Loopwright plan, credits and settings.">
 <meta name="theme-color" content="#0b0d10">
 <link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+<script>document.documentElement.classList.add("js");setTimeout(function(){if(!document.documentElement.classList.contains("motion-ready"))document.documentElement.classList.add("reveal-all")},2500)</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/assets/style.css?v=2">
 <script src="/assets/supabase.js"></script><script src="/assets/app.js"></script>
+<script src="/assets/motion.js?v=2" defer></script>
 </head><body>
 <header class="site"><div class="wrap">
 <a class="brand" href="/"><span class="logo"><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i></span>Loopwright</a>
@@ -16,20 +18,20 @@
 </nav></div></header>
 <main>
 
-<section style="padding:48px 0"><div class="wrap">
-<div id="loading" class="muted">Loading your account…</div>
+<section style="padding:56px 0"><div class="wrap">
+<div id="loading" class="skeleton" aria-label="Loading your account"><i style="width:30%;height:34px"></i><i style="width:55%"></i><i style="height:120px"></i></div>
 <div id="acct" hidden>
-<div style="display:flex;gap:16px;align-items:end;justify-content:space-between;flex-wrap:wrap;margin-bottom:24px">
-<div><span class="label">Account</span><h1 id="hello" style="font-size:2rem;margin-top:6px">Your account</h1><p class="who" id="who"></p></div>
-<div style="display:flex;gap:10px"><a class="btn primary" href="/download/">Download the app</a><button class="btn" id="signout" type="button">Sign out</button></div>
+<div class="acct-head" data-reveal>
+<div><span class="eyebrow">Account</span><h1 id="hello" style="font-size:clamp(1.8rem,4vw,2.4rem);margin-top:10px">Your account</h1><p class="who" id="who"></p></div>
+<div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn primary" href="/download/">Download the app</a><button class="btn" id="signout" type="button">Sign out</button></div>
 </div>
-<div id="resetBox" class="panel" hidden style="margin-bottom:16px"><h3 style="margin-bottom:10px">Set a new password</h3>
+<div id="resetBox" class="panel glow" hidden style="margin-bottom:18px"><h3 style="margin-bottom:12px">Set a new password</h3>
 <form id="resetForm" class="stack"><input id="newpw" type="password" minlength="8" autocomplete="new-password" placeholder="New password (8+ characters)"><button class="btn primary" type="submit">Save password</button><div id="resetMsg" class="msg" hidden></div></form></div>
-<div class="grid2">
-<div class="card"><span class="label">Plan</span><div class="stat" id="plan" style="margin-top:6px">Free</div><p class="muted small" id="planNote">Paid plans open soon.</p><a class="btn sm" href="/pricing/" style="margin-top:12px">See plans</a></div>
-<div class="card"><span class="label">Credits</span><div class="stat led" id="credits" style="margin-top:6px">0</div><p class="muted small" id="creditNote">1 credit = 1 cent. Buying credits opens soon.</p></div>
+<div class="grid2" data-stagger>
+<div class="card" data-reveal><span class="label">Plan</span><div class="stat" id="plan" style="margin-top:8px">Free</div><p class="muted small" id="planNote">Paid plans open soon.</p><a class="btn sm" href="/pricing/" style="margin-top:14px">See plans</a></div>
+<div class="card" data-reveal><span class="label">Credits</span><div class="stat led" id="credits" style="margin-top:8px">0</div><p class="muted small" id="creditNote">1 credit = 1 cent. Buying credits opens soon.</p></div>
 </div>
-<div class="panel" style="margin-top:16px"><h3 style="margin-bottom:14px">Settings</h3>
+<div class="panel" style="margin-top:18px" data-reveal><h3 style="margin-bottom:16px">Settings</h3>
 <form id="settingsForm" class="stack">
 <div class="grid2">
 <label class="f">Display name<input id="sName" maxlength="60"></label>
@@ -45,8 +47,9 @@
 </div></section>
 </main>
 <footer class="site"><div class="wrap">
-<span class="muted small">Loopwright · make songs from your own sounds</span>
-<span class="small"><a href="/pricing/">Pricing</a> · <a href="/download/">Download</a> · <a href="/signin/">Sign in</a></span>
+<a class="brand" href="/" style="font-size:1rem"><span class="logo"><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i></span>Loopwright</a>
+<span class="links small"><a href="/#how">How it works</a><a href="/pricing/">Pricing</a><a href="/download/">Download</a><a href="/studio/">Try it</a><a href="/signin/">Sign in</a></span>
+<span class="muted small" style="flex-basis:100%">Make songs from your own sounds.</span>
 </div></footer>
 <script>
 const {sb,$,show}=LW;

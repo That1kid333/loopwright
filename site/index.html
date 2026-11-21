@@ -1,12 +1,14 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Loopwright</title><meta name="description" content="Make songs from your own sounds. Describe the song in plain words and Loopwright arranges your samples, loops and vocals.">
+<title>Loopwright</title><meta name="description" content="Make songs from your own sounds and a free starter library. Describe the song in plain words and Loopwright arranges it.">
 <meta name="theme-color" content="#0b0d10">
 <link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+<script>document.documentElement.classList.add("js");setTimeout(function(){if(!document.documentElement.classList.contains("motion-ready"))document.documentElement.classList.add("reveal-all")},2500)</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/assets/style.css?v=2">
 <script src="/assets/supabase.js"></script><script src="/assets/app.js"></script>
+<script src="/assets/motion.js?v=2" defer></script>
 </head><body>
 <header class="site"><div class="wrap">
 <a class="brand" href="/"><span class="logo"><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i></span>Loopwright</a>
@@ -16,49 +18,104 @@
 </nav></div></header>
 <main>
 
-<section class="hero"><div class="wrap hero-grid">
-<div>
-<span class="tag on">Desktop app · Mac first</span>
-<h1 style="margin-top:16px">Make songs from your own sounds.</h1>
-<p class="lead">Upload your samples, loops and vocals, then describe the song in plain words. Loopwright arranges <b style="color:var(--fg)">your</b> sounds into a track. No stock loops, no AI-made audio, and your recordings stay yours.</p>
-<div class="ctas"><a class="btn primary" href="/download/">Download for Mac</a><a class="btn" href="/studio/">Try it in your browser</a></div>
-<p class="muted small" style="margin-top:14px">Free to start with 200 credits. No card needed.</p>
+<section class="hero"><div class="hero-bg" aria-hidden="true"><div class="grid"></div><div class="orb a"></div><div class="orb b"></div></div>
+<div class="wrap hero-grid">
+<div class="hero-copy">
+<span class="eyebrow">Desktop app · Mac first</span>
+<h1 style="margin-top:18px">Make songs from <span class="grad">your own sounds.</span></h1>
+<p class="lead">Start with a free library of drums, bass, keys and effects. Add your own samples, vocals and recordings. Then describe the song in plain words, and Loopwright arranges it. <b class="hi">The music stays yours.</b></p>
+<div class="ctas"><a class="btn primary lg" href="/download/">Download for Mac <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="16" height="16"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a><a class="btn lg ghost" href="/studio/">Try it in your browser</a></div>
+<div class="trust"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>200 free credits</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>No card needed</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Free sounds, no license strings</span></div>
 </div>
-<div class="rack" aria-label="Example arrangement">
-<div class="label" style="margin-bottom:8px">Arrange view · 92 BPM</div>
-<div class="row"><span class="name">kick</span><div class="steps16"><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div></div>
-<div class="row"><span class="name">hats</span><div class="steps16"><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i class="on"></i></div></div>
-<div class="row"><span class="name">bass</span><div class="steps16"><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div></div>
-<div class="row"><span class="name yours">my_vocal.wav</span><div class="steps16"><i></i><i class="y"></i><i></i><i></i><i></i><i class="y"></i><i></i><i></i><i></i><i class="y"></i><i></i><i></i><i></i><i class="y"></i><i></i><i></i></div></div>
-<div class="row"><span class="name yours">guitar_loop</span><div class="steps16"><i class="y"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="y"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-<div class="prompt-bar"><b>›</b> slow lo-fi beat, my vocal chopped on the offbeat</div>
+<div class="console-wrap">
+<div class="console" id="console" aria-label="Loopwright studio arranging a song">
+<div class="floaty f1" aria-hidden="true"><i></i>my_vocal.wav added</div>
+<div class="floaty f2" aria-hidden="true"><i></i>chop · offbeat</div>
+<div class="c-top">
+<div class="c-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+<span class="c-title">untitled-song · arrange</span>
+<div class="transport" aria-hidden="true"><span class="tbtn play"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor" stroke="none"/></svg></span><span class="tbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor" stroke="none"/></svg></span><span class="tbtn rec"><i></i></span><span class="bpm"><span data-bpm>84</span> BPM</span></div>
+</div>
+<div class="seq"><div class="row"><span class="name">kick</span><div class="steps16"><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div></div><div class="row"><span class="name">hats</span><div class="steps16"><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i class="on"></i></div></div><div class="row"><span class="name">bass</span><div class="steps16"><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="row yours"><span class="name">my_vocal.wav</span><div class="steps16"><i></i><i class="y"></i><i></i><i></i><i></i><i class="y"></i><i></i><i></i><i></i><i class="y"></i><i></i><i></i><i></i><i class="y"></i><i></i><i></i></div></div><div class="row yours"><span class="name">guitar_loop</span><div class="steps16"><i class="y"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="y"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="playhead" aria-hidden="true"></div></div>
+<div class="c-bottom" aria-hidden="true">
+<div class="pads"><div class="pad"><span>KCK</span></div><div class="pad"><span>HAT</span></div><div class="pad"><span>BAS</span></div><div class="pad"><span>VOX</span></div><div class="pad"><span>GTR</span></div><div class="pad"><span>CLP</span></div><div class="pad"><span>SNR</span></div><div class="pad"><span>KEY</span></div></div>
+<div class="mix">
+<div class="knob"><i style="--v:.35"></i>Filter</div><div class="knob"><i style="--v:.6"></i>Drive</div><div class="knob"><i style="--v:.7"></i>Space</div>
+<div class="meter"><b></b><b></b></div>
+</div>
+</div>
+<div class="prompt-bar"><b>›</b><span class="txt">slow lo-fi beat, my vocal chopped on the offbeat</span><i class="caret" aria-hidden="true"></i><span class="status">84 bpm</span></div>
+</div>
 </div>
 </div></section>
 
+<div class="marquee" aria-label="Sounds and effects"><div class="track"><span class="chip "><i></i>kick</span><span class="chip "><i></i>snare</span><span class="chip "><i></i>clap</span><span class="chip "><i></i>hats</span><span class="chip "><i></i>808 bass</span><span class="chip t"><i></i>keys</span><span class="chip t"><i></i>warm pad</span><span class="chip y"><i></i>my_vocal.wav</span><span class="chip t"><i></i>pitch</span><span class="chip t"><i></i>reverse</span><span class="chip t"><i></i>chop</span><span class="chip t"><i></i>stretch</span><span class="chip y"><i></i>guitar_loop.wav</span><span class="chip t"><i></i>filter</span><span class="chip t"><i></i>drive</span><span class="chip t"><i></i>delay</span><span class="chip t"><i></i>reverb</span><span class="chip y"><i></i>Mic take 1</span><span class="chip " aria-hidden="true"><i></i>kick</span><span class="chip " aria-hidden="true"><i></i>snare</span><span class="chip " aria-hidden="true"><i></i>clap</span><span class="chip " aria-hidden="true"><i></i>hats</span><span class="chip " aria-hidden="true"><i></i>808 bass</span><span class="chip t" aria-hidden="true"><i></i>keys</span><span class="chip t" aria-hidden="true"><i></i>warm pad</span><span class="chip y" aria-hidden="true"><i></i>my_vocal.wav</span><span class="chip t" aria-hidden="true"><i></i>pitch</span><span class="chip t" aria-hidden="true"><i></i>reverse</span><span class="chip t" aria-hidden="true"><i></i>chop</span><span class="chip t" aria-hidden="true"><i></i>stretch</span><span class="chip y" aria-hidden="true"><i></i>guitar_loop.wav</span><span class="chip t" aria-hidden="true"><i></i>filter</span><span class="chip t" aria-hidden="true"><i></i>drive</span><span class="chip t" aria-hidden="true"><i></i>delay</span><span class="chip t" aria-hidden="true"><i></i>reverb</span><span class="chip y" aria-hidden="true"><i></i>Mic take 1</span></div></div>
+
 <section class="block" id="how"><div class="wrap">
-<h2>How it works</h2>
-<p class="muted">A plain-words prompt does the arranging. You keep full control of every step afterwards.</p>
-<div class="cards">
-<div class="card"><span class="num">01</span><h3>Bring your sounds</h3><p class="muted">Drop in WAVs, loops, one-shots and vocals. Built-in basic drums, bass and keys are made in code, so there are no stock samples to license.</p></div>
-<div class="card"><span class="num">02</span><h3>Describe the song</h3><p class="muted">"Dark trap at 140, my sample pitched down and reversed." Loopwright picks steps, effects and levels using only what's in your library.</p></div>
-<div class="card"><span class="num">03</span><h3>Shape it and export</h3><p class="muted">Edit the steps, play parts live on the on-screen keyboard, tweak effects, then export a WAV.</p></div>
+<div class="sec-head" data-reveal><span class="eyebrow">How it works</span><h2>Three steps from idea to track.</h2><p>A plain-words prompt does the arranging. You keep full control of every step afterwards.</p></div>
+<div class="steps" data-stagger>
+<div class="card" data-reveal><div class="viz"><div class="wave"><b style="--d:0;--h:0.5"></b><b style="--d:1;--h:0.9"></b><b style="--d:2;--h:0.7"></b><b style="--d:3;--h:1"></b><b style="--d:4;--h:0.6"></b><b style="--d:5;--h:0.85"></b><b style="--d:6;--h:0.4"></b><b style="--d:7;--h:0.95"></b><b style="--d:8;--h:0.65"></b><b style="--d:9;--h:0.8"></b><b style="--d:10;--h:0.5"></b><b style="--d:11;--h:0.75"></b><b style="--d:12;--h:0.9"></b><b style="--d:13;--h:0.45"></b><b style="--d:14;--h:0.7"></b><b style="--d:15;--h:0.6"></b><b style="--d:16;--h:0.5"></b><b style="--d:17;--h:0.9"></b><b style="--d:18;--h:0.7"></b><b style="--d:19;--h:1"></b><b style="--d:20;--h:0.6"></b><b style="--d:21;--h:0.85"></b><b style="--d:22;--h:0.4"></b><b style="--d:23;--h:0.95"></b><b style="--d:24;--h:0.65"></b><b style="--d:25;--h:0.8"></b></div><span class="drop">+ my_vocal.wav</span></div><span class="num">01</span><h3>Pick your sounds</h3><p class="muted">Start from the free starter library, drop in your own WAVs, loops and vocals, or record straight from your mic.</p></div>
+<div class="card" data-reveal><div class="viz"><div class="typing"><b>›</b><span>dark trap at 140, my guitar reversed</span><i class="caret"></i></div></div><span class="num">02</span><h3>Describe the song</h3><p class="muted">“Dark trap at 140, my guitar pitched down and reversed.” Loopwright picks the steps, effects and levels from your library.</p></div>
+<div class="card" data-reveal><div class="viz"><div class="mini-seq" style="margin-top:-18px"><i style="--d:0"></i><i style="--d:1"></i><i style="--d:2"></i><i style="--d:3"></i><i style="--d:4"></i><i style="--d:5"></i><i style="--d:6"></i><i style="--d:7"></i></div><div class="export"><span>track.wav</span><span class="bar"></span></div></div><span class="num">03</span><h3>Shape it and export</h3><p class="muted">Edit any step, play parts live on the on-screen keyboard, tweak the effects, then export a WAV.</p></div>
 </div>
 </div></section>
 
 <section class="block"><div class="wrap">
-<h2>Built for your own material</h2>
-<div class="cards">
-<div class="card"><h3>Your sounds stay yours</h3><p class="muted">Only sound names and lengths are sent to the arranger, never the audio. Processing runs on your computer.</p></div>
-<div class="card"><h3>Free effects included</h3><p class="muted">Pitch, reverse, chop, stretch, filter, drive, delay and reverb come with the app at no extra cost.</p></div>
-<div class="card"><h3>Credits you can see</h3><p class="muted">1 credit is 1 cent. Before a big run you see the most it can cost, and failed runs are free.</p></div>
-<div class="card"><h3>Dark studio look</h3><p class="muted">Near-black panels, amber step lights and high contrast that stays easy on the eyes in long sessions.</p></div>
+<div class="sec-head" data-reveal><span class="eyebrow">What you get</span><h2>A full kit on day one, and room for yours.</h2><p>Loopwright comes loaded with sounds and effects you can use anywhere. Bring your own whenever you're ready.</p></div>
+<div class="bento" data-stagger>
+<div class="card wide" data-reveal><div class="icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8 14h2l1-3 2 6 1-3h2"/></svg></div><h3>Free starter library</h3><p class="muted">Drums, bass, keys and pads come built in. They're made in code, so they're free to use in anything you release, with no license strings attached.</p>
+<div class="lib"><span class="chip"><i></i>kick</span><span class="chip"><i></i>snare</span><span class="chip"><i></i>clap</span><span class="chip"><i></i>hats</span><span class="chip"><i></i>808 bass</span><span class="chip t"><i></i>keys</span><span class="chip t"><i></i>piano</span><span class="chip t"><i></i>warm pad</span></div></div>
+<div class="card wide" data-reveal><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></div><h3>Effects included</h3><p class="muted">Pitch, reverse, chop, stretch, filter, drive, delay and reverb come with the app at no extra cost.</p>
+<div class="fx-row" aria-hidden="true"><div class="knob"><i style="--v:.45"></i>Pitch</div><div class="knob"><i style="--v:.6"></i>Filter</div><div class="knob"><i style="--v:.35"></i>Drive</div><div class="knob"><i style="--v:.7"></i>Delay</div><div class="knob"><i style="--v:.5"></i>Reverb</div></div></div>
+<div class="card" data-reveal><div class="icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M20 16v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3"/></svg></div><h3>Upload your samples</h3><p class="muted">Drop in WAV loops, one-shots and vocals and use them right next to the starter sounds.</p></div>
+<div class="card" data-reveal><div class="icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/></svg></div><h3>Make your own sounds</h3><p class="muted">Record your voice or an instrument from the mic, or play a part on the on-screen keyboard and keep the take.</p></div>
+<div class="card" data-reveal><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2v6M15 2v6M6 8h12v3a6 6 0 0 1-12 0zM12 17v5"/></svg></div><span class="tag soon" style="margin-bottom:10px">Coming to the desktop app</span><h3>Manage your plugins</h3><p class="muted">Point Loopwright at your plugin folders and use your own instruments and effects alongside the built-in ones.</p></div>
 </div>
-<div class="ctas" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:28px"><a class="btn primary" href="/signin/?mode=signup">Create a free account</a><a class="btn" href="/pricing/">See pricing</a></div>
+</div></section>
+
+<section class="block"><div class="wrap split">
+<div data-reveal="left">
+<span class="eyebrow">Your music stays yours</span>
+<h2>The AI arranges. It never makes the audio.</h2>
+<p class="muted" style="font-size:1.06rem">Loopwright only decides which of your sounds play when, and with which effects. Every note you hear comes from the starter library or from you.</p>
+<ul class="checks">
+<li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></span><span><b>Your audio stays on your computer.</b> Only sound names and lengths go to the arranger, never the recordings.</span></li>
+<li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></span><span><b>Starter sounds are license-free.</b> Use them in anything you put out.</span></li>
+<li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></span><span><b>Credits you can see.</b> 1 credit is 1 cent, you see the most a run can cost, and failed runs are free.</span></li>
+</ul>
+</div>
+<div class="flow" data-reveal="scale" aria-label="How a song is made">
+<div class="node you"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8 14h2l1-3 2 6 1-3h2"/></svg></span><div>Your sounds + starter library<small>samples, vocals, mic takes, built-in kit</small></div></div>
+<div class="link" aria-hidden="true"></div>
+<div class="node ai"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z"/></svg></span><div>The arranger reads your prompt<small>sees sound names and lengths only</small></div></div>
+<div class="link" aria-hidden="true"></div>
+<div class="node out"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12h2l2-6 3 12 3-9 3 6 2-3h5"/></svg></span><div>Your song plays on your computer<small>edit any step, then export a WAV</small></div></div>
+</div>
+</div></section>
+
+<section class="block"><div class="wrap">
+<div class="stats" data-stagger>
+<div class="stat-card" data-reveal><div class="n led" data-count="200">200</div><p>free credits when you sign up</p></div>
+<div class="stat-card" data-reveal><div class="n t">1¢</div><p>per credit, so no surprise bills</p></div>
+<div class="stat-card" data-reveal><div class="n" data-count="8">8</div><p>effects included free</p></div>
+<div class="stat-card" data-reveal><div class="n" data-count="4">4</div><p>arranging modes, from Quick to Studio</p></div>
+</div>
+</div></section>
+
+<section style="padding:24px 0 40px"><div class="wrap">
+<div class="cta-band" data-reveal="scale">
+<div class="eq" aria-hidden="true"><b style="--d:0;--h:0.3"></b><b style="--d:1;--h:0.6699999999999999"></b><b style="--d:2;--h:0.33999999999999997"></b><b style="--d:3;--h:0.71"></b><b style="--d:4;--h:0.38"></b><b style="--d:5;--h:0.75"></b><b style="--d:6;--h:0.42"></b><b style="--d:7;--h:0.79"></b><b style="--d:8;--h:0.45999999999999996"></b><b style="--d:9;--h:0.8300000000000001"></b><b style="--d:10;--h:0.5"></b><b style="--d:11;--h:0.8699999999999999"></b><b style="--d:12;--h:0.54"></b><b style="--d:13;--h:0.9099999999999999"></b><b style="--d:14;--h:0.5800000000000001"></b><b style="--d:15;--h:0.95"></b><b style="--d:16;--h:0.62"></b><b style="--d:17;--h:0.99"></b><b style="--d:18;--h:0.6599999999999999"></b><b style="--d:19;--h:0.32999999999999996"></b><b style="--d:20;--h:0.7"></b><b style="--d:21;--h:0.37"></b><b style="--d:22;--h:0.74"></b><b style="--d:23;--h:0.41"></b><b style="--d:24;--h:0.78"></b><b style="--d:25;--h:0.44999999999999996"></b><b style="--d:26;--h:0.8200000000000001"></b><b style="--d:27;--h:0.49"></b><b style="--d:28;--h:0.8600000000000001"></b><b style="--d:29;--h:0.53"></b><b style="--d:30;--h:0.8999999999999999"></b><b style="--d:31;--h:0.5700000000000001"></b><b style="--d:32;--h:0.94"></b><b style="--d:33;--h:0.61"></b><b style="--d:34;--h:0.98"></b><b style="--d:35;--h:0.6499999999999999"></b><b style="--d:36;--h:0.32"></b><b style="--d:37;--h:0.69"></b><b style="--d:38;--h:0.36"></b><b style="--d:39;--h:0.73"></b><b style="--d:40;--h:0.4"></b><b style="--d:41;--h:0.77"></b><b style="--d:42;--h:0.44"></b><b style="--d:43;--h:0.81"></b><b style="--d:44;--h:0.48"></b><b style="--d:45;--h:0.8500000000000001"></b><b style="--d:46;--h:0.52"></b><b style="--d:47;--h:0.8899999999999999"></b></div>
+<span class="eyebrow">Free to start</span>
+<h2 style="margin-top:14px">Your sounds. Your song.</h2>
+<p>Create a free account and get 200 credits to arrange with. No card needed.</p>
+<div class="ctas"><a class="btn primary lg" href="/signin/?mode=signup">Create a free account <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="16" height="16"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a><a class="btn lg ghost" href="/pricing/">See pricing</a></div>
+</div>
 </div></section>
 </main>
 <footer class="site"><div class="wrap">
-<span class="muted small">Loopwright · make songs from your own sounds</span>
-<span class="small"><a href="/pricing/">Pricing</a> · <a href="/download/">Download</a> · <a href="/signin/">Sign in</a></span>
+<a class="brand" href="/" style="font-size:1rem"><span class="logo"><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i></span>Loopwright</a>
+<span class="links small"><a href="/#how">How it works</a><a href="/pricing/">Pricing</a><a href="/download/">Download</a><a href="/studio/">Try it</a><a href="/signin/">Sign in</a></span>
+<span class="muted small" style="flex-basis:100%">Make songs from your own sounds.</span>
 </div></footer>
 
 </body></html>

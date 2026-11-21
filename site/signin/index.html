@@ -3,10 +3,12 @@
 <title>Sign in · Loopwright</title><meta name="description" content="Sign in or create your Loopwright account.">
 <meta name="theme-color" content="#0b0d10">
 <link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+<script>document.documentElement.classList.add("js");setTimeout(function(){if(!document.documentElement.classList.contains("motion-ready"))document.documentElement.classList.add("reveal-all")},2500)</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/assets/style.css?v=2">
 <script src="/assets/supabase.js"></script><script src="/assets/app.js"></script>
+<script src="/assets/motion.js?v=2" defer></script>
 </head><body>
 <header class="site"><div class="wrap">
 <a class="brand" href="/"><span class="logo"><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i></span>Loopwright</a>
@@ -16,8 +18,11 @@
 </nav></div></header>
 <main>
 
-<section style="padding:60px 0"><div class="wrap narrow">
-<div class="panel">
+<section class="auth"><div class="hero-bg" aria-hidden="true"><div class="grid"></div><div class="orb a"></div><div class="orb b"></div></div><div class="wrap narrow">
+<div class="leds" aria-hidden="true"><i style="--d:0"></i><i style="--d:1"></i><i style="--d:2"></i><i style="--d:3"></i><i style="--d:4"></i><i style="--d:5"></i><i style="--d:6"></i><i style="--d:7"></i></div>
+<h1 data-reveal>Welcome to Loopwright</h1>
+<p class="sub" data-reveal style="--i:1">One account for the website and the desktop app.</p>
+<div class="panel glow" data-reveal="scale" style="--i:2">
 <div class="tabs" role="tablist"><button id="tabIn" class="on" type="button">Sign in</button><button id="tabUp" type="button">Create account</button></div>
 <form id="authForm" class="stack" novalidate>
 <label class="f" id="nameRow" hidden>Name<input id="name" autocomplete="name" placeholder="What should we call you?"></label>
@@ -29,12 +34,13 @@
 <button class="btn sm" id="forgot" type="button" style="background:transparent;border:0;color:var(--fg-2)">Forgot your password?</button>
 </form>
 </div>
-<p class="muted small" style="text-align:center;margin-top:16px">Use the same account in the desktop app.</p>
+<p class="muted small" style="text-align:center;margin-top:18px">New accounts start with 200 free credits.</p>
 </div></section>
 </main>
 <footer class="site"><div class="wrap">
-<span class="muted small">Loopwright · make songs from your own sounds</span>
-<span class="small"><a href="/pricing/">Pricing</a> · <a href="/download/">Download</a> · <a href="/signin/">Sign in</a></span>
+<a class="brand" href="/" style="font-size:1rem"><span class="logo"><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i></span>Loopwright</a>
+<span class="links small"><a href="/#how">How it works</a><a href="/pricing/">Pricing</a><a href="/download/">Download</a><a href="/studio/">Try it</a><a href="/signin/">Sign in</a></span>
+<span class="muted small" style="flex-basis:100%">Make songs from your own sounds.</span>
 </div></footer>
 <script>
 const {sb,$,show}=LW; let mode=new URLSearchParams(location.search).get("mode")==="signup"?"up":"in";
