@@ -840,9 +840,9 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
 
 /* snapshots and undo */
 const snaps=[];
-const snapOf=()=>({bpm:state.bpm,swing:state.swing,tracks:state.tracks.map(t=>JSON.parse(JSON.stringify({id:t.id,soundId:t.soundId,seed:t.seed,mute:t.mute,locked:!!t.locked,steps:t.steps,bars:t.bars,fx:t.fx})))});
+const snapOf=()=>({bpm:state.bpm,swing:state.swing,tracks:state.tracks.map(t=>JSON.parse(JSON.stringify({id:t.id,soundId:t.soundId,seed:t.seed,mute:t.mute,locked:!!t.locked,raw:!!t.raw,steps:t.steps,bars:t.bars,fx:t.fx})))});
 function restore(s){for(const t of state.tracks)live.drop(t.id);
-  state.tracks=s.tracks.map(o=>Object.assign(newTrack(o.soundId,{steps:o.steps.slice(),bars:o.bars.slice(),fx:o.fx}),{id:o.id,seed:o.seed,mute:o.mute,locked:o.locked}));
+  state.tracks=s.tracks.map(o=>Object.assign(newTrack(o.soundId,{steps:o.steps.slice(),bars:o.bars.slice(),fx:o.fx}),{id:o.id,seed:o.seed,mute:o.mute,locked:o.locked,raw:o.raw}));
   state.bpm=s.bpm;state.swing=s.swing;$("bpm").value=state.bpm;$("swing").value=state.swing;live.setTempo(state.bpm);renderTracks();updUndo();}
 function takeSnap(){if(ai.snapshots){snaps.push(snapOf());if(snaps.length>20)snaps.shift();}updUndo();}
 function updUndo(){const b=$("aiUndo");if(b){b.hidden=!snaps.length;b.textContent=snaps.length>1?`Undo AI change (${snaps.length})`:"Undo AI change";}}
