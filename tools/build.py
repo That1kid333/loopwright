@@ -15,7 +15,7 @@ HEAD = """<!doctype html>
 <header class="site"><div class="wrap">
 <a class="brand" href="/"><span class="logo"><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i></span>Loopwright</a>
 <nav class="main">
-<a href="/#how" class="hide-sm">How it works</a><a href="/pricing/" {a_pricing}>Pricing</a><a href="/download/" {a_download}>Download</a><a href="/studio/" class="hide-sm" {a_studio}>Try it</a>
+<a href="/#how" class="hide-sm">How it works</a><a href="/pricing/" {a_pricing}>Pricing</a><a href="/download/" class="hide-xs{a_download}">Download</a><a href="/studio/" class="hide-sm" {a_studio}>Try it</a>
 <span id="navAuth"></span>
 </nav></div></header>
 <main>
@@ -32,6 +32,7 @@ FOOT = """</main>
 def page(path, title, desc, body, active="", script=""):
     a = {k: "" for k in ("a_pricing","a_download","a_studio")}
     if active: a["a_"+active] = 'class="active"'
+    if active == "download": a["a_download"] = " active"
     html = HEAD.format(title=title, desc=desc, **a) + body + FOOT.format(script=script)
     d = os.path.join(OUT, path); os.makedirs(d, exist_ok=True)
     open(os.path.join(d, "index.html"), "w").write(html)
