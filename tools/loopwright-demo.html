@@ -1272,12 +1272,12 @@ function meterLoop(){requestAnimationFrame(meterLoop);if(document.hidden)return;
 
 /* ---------- workspace: browser, views, dock, floating panels, layouts ---------- */
 const PANELS=["pattern","fx","mixer","keys"];const PANEL_NAME={pattern:"Pattern",fx:"Pedalboard",mixer:"Mixer",keys:"Keyboard"};
-const LAYOUT_DEF={name:"Compose",browser:true,bw:268,bh:340,dock:true,tab:"pattern",view:"arrange",floats:{}};
+const LAYOUT_DEF={v:2,name:"Compose",browser:true,bw:268,bh:340,dock:true,tab:"pattern",view:"arrange",floats:{}};
 let layout=JSON.parse(JSON.stringify(LAYOUT_DEF));
-try{const sv=JSON.parse(localStorage.getItem("loopwright-layout")||"{}");for(const k in LAYOUT_DEF)if(k in sv&&typeof sv[k]===typeof LAYOUT_DEF[k])layout[k]=sv[k];}catch(e){}
+try{const sv=JSON.parse(localStorage.getItem("loopwright-layout")||"{}");for(const k in LAYOUT_DEF)if(k in sv&&typeof sv[k]===typeof LAYOUT_DEF[k])layout[k]=sv[k];if(sv.v!==2&&layout.bh<LAYOUT_DEF.bh)layout.bh=LAYOUT_DEF.bh;layout.v=2;}catch(e){}
 // on a phone the browser covers the song, so it starts closed there
 if((typeof window!=="undefined"&&window.innerWidth||1200)<=760)layout.browser=false;
-function saveLayout(){try{localStorage.setItem("loopwright-layout",JSON.stringify(layout));}catch(e){}}
+function saveLayout(){layout.v=2;try{localStorage.setItem("loopwright-layout",JSON.stringify(layout));}catch(e){}}
 const ws=$("workspace"),center=$("center"),dockBody=$("dockBody");
 function wsRect(){const r=ws.getBoundingClientRect?ws.getBoundingClientRect():null;return r&&r.width?r:{left:0,top:0,width:1200,height:700};}
 function applyLayout(){
