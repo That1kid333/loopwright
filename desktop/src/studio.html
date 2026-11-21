@@ -32,7 +32,7 @@ window.claude = { use: async function (name) {
   --display:"Space Grotesk",Inter,system-ui,sans-serif;
   --body:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
-  --bw:268px; --bh:300px; --hdw:212px; color-scheme:dark;
+  --bw:268px; --bh:340px; --hdw:212px; color-scheme:dark;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark}}
 :root[data-theme="dark"]{color-scheme:dark}
@@ -180,6 +180,7 @@ p{margin:0}
 .viewbar .sp{flex:1}
 .view{position:relative;min-height:0;overflow:auto;background:var(--bg)}
 .view[hidden]{display:none}
+[hidden]:not(.drawer){display:none!important}
 
 /* arrangement */
 .arr{position:relative;min-width:calc(var(--hdw) + 8 * 96px)}
@@ -193,7 +194,7 @@ p{margin:0}
 .row.sel .lane{background:color-mix(in srgb,var(--tc) 4%,var(--bg))}
 .row.dropok .lane,.row.dropok .thead{outline:2px dashed var(--accent);outline-offset:-2px}
 .thead{position:sticky;left:0;z-index:3;display:grid;grid-template-columns:4px 1fr auto;grid-template-rows:auto auto;gap:3px 8px;align-items:center;padding:6px 8px 6px 0;background:var(--panel);border-right:1px solid var(--line);cursor:pointer}
-.thead .strip{grid-row:1/3;align-self:stretch;background:var(--tc);border-radius:0 3px 3px 0;box-shadow:0 0 10px color-mix(in srgb,var(--tc) 50%,transparent)}
+.thead .tstrip{grid-row:1/3;align-self:stretch;background:var(--tc);border-radius:0 3px 3px 0;box-shadow:0 0 10px color-mix(in srgb,var(--tc) 50%,transparent)}
 .thead .tname{min-width:0;display:flex;align-items:center;gap:6px}
 .thead select{min-width:0;flex:1;border:0;background:transparent;font-weight:600;padding:2px 0;text-overflow:ellipsis}
 .thead select:hover{color:var(--accent)}
@@ -345,6 +346,7 @@ p{margin:0}
 .pedal.w2{width:214px}.pedal.w3{width:300px}
 .pedal .pre{font-size:.66rem;max-width:100%;background:rgba(0,0,0,.28);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:2px 4px}
 .pedal .pre option{color:#111}
+.pedal{gap:5px;padding:10px 9px 9px}.pedal .pt{margin-top:-4px}.pedal .fsw{width:36px;height:36px}.pedal .pk{padding:6px 5px 4px}
 .pedmenu{width:min(520px,calc(100vw - 16px));grid-template-columns:repeat(3,1fr);max-height:min(60vh,440px);overflow:auto}
 .pedmenu .mh{grid-column:1/-1;margin-top:4px}
 
@@ -1133,7 +1135,7 @@ function renderArrange(){const box=$("tracks");box.innerHTML="";
   const ru=h("div","ruler");const corner=h("div","corner",'<span class="label">Tracks</span>');ru.appendChild(corner);
   const bars=h("div","bars");for(let b=0;b<SONG_BARS;b++)bars.appendChild(h("span",null,String(b+1)));ru.appendChild(bars);box.appendChild(ru);
   state.tracks.forEach((t,ti)=>{const row=h("div","row"+(t===selTrack()?" sel":""));row.style.setProperty("--tc",t.color);row.dataset.id=t.id;
-    const th=h("div","thead");th.appendChild(h("span","strip"));
+    const th=h("div","thead");th.appendChild(h("span","tstrip"));
     const nm=h("div","tname");nm.appendChild(soundSelect(t));th.appendChild(nm);
     const kb=h("div","tknobs");kb.style.cssText="grid-row:1/3;grid-column:3;display:flex;gap:2px";
     kb.appendChild(knob({sm:true,label:"Vol",novalue:true,min:-30,max:6,step:.5,def:0,value:t.fx.vol,fmt:volFmt,color:t.color,onInput:v=>{t.fx.vol=v;live.apply(t);}}));
@@ -1285,9 +1287,11 @@ function meterLoop(){requestAnimationFrame(meterLoop);if(document.hidden)return;
 
 /* ---------- workspace: browser, views, dock, floating panels, layouts ---------- */
 const PANELS=["pattern","fx","mixer","keys"];const PANEL_NAME={pattern:"Pattern",fx:"Pedalboard",mixer:"Mixer",keys:"Keyboard"};
-const LAYOUT_DEF={name:"Compose",browser:true,bw:268,bh:300,dock:true,tab:"pattern",view:"arrange",floats:{}};
+const LAYOUT_DEF={name:"Compose",browser:true,bw:268,bh:340,dock:true,tab:"pattern",view:"arrange",floats:{}};
 let layout=JSON.parse(JSON.stringify(LAYOUT_DEF));
 try{const sv=JSON.parse(localStorage.getItem("loopwright-layout")||"{}");for(const k in LAYOUT_DEF)if(k in sv&&typeof sv[k]===typeof LAYOUT_DEF[k])layout[k]=sv[k];}catch(e){}
+// on a phone the browser covers the song, so it starts closed there
+if((typeof window!=="undefined"&&window.innerWidth||1200)<=760)layout.browser=false;
 function saveLayout(){try{localStorage.setItem("loopwright-layout",JSON.stringify(layout));}catch(e){}}
 const ws=$("workspace"),center=$("center"),dockBody=$("dockBody");
 function wsRect(){const r=ws.getBoundingClientRect?ws.getBoundingClientRect():null;return r&&r.width?r:{left:0,top:0,width:1200,height:700};}
@@ -1337,10 +1341,10 @@ splitter($("browserSplit"),ev=>{const r=wsRect();layout.bw=clamp(ev.clientX-r.le
 splitter($("dockSplit"),ev=>{const r=center.getBoundingClientRect();layout.bh=clamp(r.bottom-ev.clientY,120,Math.max(140,r.height-120));layout.dock=true;applyLayout();},()=>{layout.bh=layout.bh>200?160:320;applyLayout();saveLayout();});
 // layout presets
 const PRESETS={
-  Compose:{browser:true,view:"arrange",dock:true,tab:"pattern",bh:300,floats:{}},
-  "Sound design":{browser:true,view:"arrange",dock:true,tab:"fx",bh:330,floats:{},btab:"fx"},
+  Compose:{browser:true,view:"arrange",dock:true,tab:"pattern",bh:340,floats:{}},
+  "Sound design":{browser:true,view:"arrange",dock:true,tab:"fx",bh:380,floats:{},btab:"fx"},
   Mix:{browser:false,view:"arrange",dock:true,tab:"mixer",bh:380,floats:{}},
-  "Studio desk":{browser:true,view:"desk",dock:true,tab:"fx",bh:300,floats:{}},
+  "Studio desk":{browser:true,view:"desk",dock:true,tab:"fx",bh:340,floats:{}},
   Perform:{browser:false,view:"desk",dock:true,tab:"keys",bh:260,floats:"fx"},
 };
 function usePreset(name){const P=PRESETS[name];if(!P)return;const r=wsRect();
