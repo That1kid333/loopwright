@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, Menu } = require("electron");
+const { app, BrowserWindow, shell, Menu, session, systemPreferences } = require("electron");
 const path = require("path");
 
 const SITE = "https://loopwright-studio.netlify.app";
@@ -36,6 +36,16 @@ const template = [
 ];
 
 app.whenReady().then(() => {
+  // Recording: allow the studio (local files only) to use the mic / audio input and MIDI.
+  const allowed = new Set(["media", "midi", "midiSysex", "audioCapture"]);
+  // Only local app pages ever load (outside links open in the browser), so the set below is the whole rule.
+  session.defaultSession.setPermissionRequestHandler((wc, permission, cb, details) => {
+    if (!allowed.has(permission)) return cb(false);
+    if (permission === "media" && process.platform === "darwin" && (details.mediaTypes || []).includes("audio")) {
+      systemPreferences.askForMediaAccess("microphone").then(cb, () => cb(false));
+    } else cb(true);
+  });
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission));
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
