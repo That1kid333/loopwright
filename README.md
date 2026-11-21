@@ -21,6 +21,6 @@ cd desktop && npm i -D @electron/packager@20.3.0
 node pack.mjs "$PWD" ../out <electron-zip-cache-or-empty> build/icon.icns
 ```
 On a Mac, ad-hoc sign afterwards: `codesign --force --deep -s - out/Loopwright-darwin-arm64/Loopwright.app`.
-Release zips are attached to GitHub Releases (too big for git); the download page links to `releases/latest/download/...`.
+Release builds are packed as .tar.xz (under GitHub's 100 MB file limit) into `site/downloads/`, which Netlify serves.
 
 The app is unsigned (no Apple Developer ID yet), so macOS asks for confirmation the first time.

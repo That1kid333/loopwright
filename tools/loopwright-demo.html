@@ -127,6 +127,12 @@ textarea{width:100%;min-height:72px;resize:vertical;border:1px solid var(--line)
 .oct{display:inline-flex;align-items:center;gap:6px}.oct .btn{min-width:44px;min-height:40px;padding:0 12px;font-size:1.1rem}
 @media (max-width:620px){.piano{height:150px}}
 .pk.down{background:var(--led);color:#2a1a00;border-color:var(--led)}
+.rec{display:inline-flex;align-items:center;gap:8px;min-height:40px}
+.rec i{width:10px;height:10px;border-radius:50%;background:var(--warn);display:inline-block}
+.rec.on{border-color:var(--warn);color:var(--warn);box-shadow:0 0 12px color-mix(in srgb,var(--warn) 45%,transparent)}
+.rec.on i{animation:recblink 1s steps(2,start) infinite}
+@keyframes recblink{to{visibility:hidden}}
+@media (prefers-reduced-motion:reduce){.rec.on i{animation:none}}
 .set-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px 28px;margin-top:10px}
 .set-col{display:flex;flex-direction:column;gap:2px;min-width:0}
 .set-col h3{font-family:var(--mono);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0 0 6px}
@@ -168,6 +174,14 @@ textarea{background:var(--bg)}
   .pos{min-width:0}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.btn.lock.on{background:color-mix(in srgb,var(--yours) 22%,transparent);border-color:var(--yours);color:var(--fg)}
+.trk.locked{box-shadow:inset 3px 0 0 var(--yours)}
+.ai-changes{margin:6px 0 4px 18px;padding:0;font-size:.85rem}
+.ai-changes li{margin:2px 0}
+.ai-takes{display:flex;gap:6px;margin:6px 0}
+.ai-lyrics{margin-top:8px}
+.ai-lyrics pre,.ai-seen{white-space:pre-wrap;font-family:var(--mono);font-size:.78rem;background:var(--panel);border:1px solid var(--line,#272d36);border-radius:6px;padding:8px;margin:4px 0 0;max-height:260px;overflow:auto}
+.result .ask-row{margin-top:8px}
 </style>
 
 <div class="wrap">
@@ -209,6 +223,18 @@ textarea{background:var(--bg)}
     </div>
     <div class="piano" id="piano" role="group" aria-label="Keyboard"></div>
     <p class="small muted" id="kbHint">Tap or click the keys, and use &minus; and + to change octave. No MIDI gear needed.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="h-rec">
+    <div class="panel-head">
+      <h2 id="h-rec">Record</h2>
+      <span class="small muted">Takes start at bar 1. Turn on count-in in Settings for a bar of clicks first.</span>
+    </div>
+    <div class="ask-row">
+      <button class="btn rec" id="recKeysBtn" type="button" aria-pressed="false"><i aria-hidden="true"></i><span>Record keyboard</span></button>
+      <button class="btn rec" id="recMicBtn" type="button" aria-pressed="false"><i aria-hidden="true"></i><span>Record mic</span></button>
+    </div>
+    <p class="small muted" id="recState" aria-live="polite">Record keyboard turns what you play on the virtual keyboard into a pattern on a new track, snapped to the nearest step. Record mic adds your take as a new sound and track; your browser asks for the microphone first.</p>
   </section>
 
   <section class="panel" aria-labelledby="h-desc">
@@ -292,15 +318,17 @@ textarea{background:var(--bg)}
         <li>Your files are decoded and played locally with the Web Audio API.</li>
         <li>Built-in drums, bass, pad, keys and the example vocal are synthesized in code, so no licensed samples are involved.</li>
         <li>Every effect runs live: pitch, reverse, chop, gate length, fit to tempo, filter, drive, delay, reverb, volume, pan.</li>
+        <li>Record turns your virtual keyboard playing into a pattern, and a mic take into a new sound and track, lined up with bar 1.</li>
         <li>Play live turns any sound, yours included, into a playable instrument from the on-screen keys, your computer keyboard, or a MIDI keyboard where the browser allows it.</li>
         <li>"Arrange it" asks Claude for a pattern built only from the sounds listed above, when this view allows it. Otherwise a keyword matcher does it.</li>
+        <li>AI producer settings shape every run: personality, creativity, work mode (suggest, preview or auto), explained changes, takes, reference vibe, project memory, Keep my sound, protected tracks, built-in sound rules, lyric helper, snapshots with undo, a monthly credit budget, and a view of exactly what the AI is sent.</li>
         <li>Export renders the song offline to a 16- or 24-bit WAV, at the length and sample rate set in Settings.</li>
       </ul></div>
       <div><span class="label">Faked or missing</span><ul class="small">
         <li>No accounts, cloud library or saved projects yet. Refresh and it's gone.</li>
         <li>"Fit to tempo" changes speed and pitch together. A real stretcher keeps the pitch.</li>
         <li>No third-party plugins. Browsers can't load VST or AU; they need Web Audio Modules.</li>
-        <li>Live playing isn't recorded into tracks, and there's no audio input for a guitar or mic through an interface.</li>
+        <li>Mic recording uses whatever mic the browser allows, with no monitoring, input level or audio interface choice. The desktop app records from your interface.</li>
         <li>No stem splitting, key detection or beat detection on your uploads.</li>
         <li>One 16-step pattern per track. A real song needs sections and longer phrases.</li>
       </ul></div>
@@ -410,7 +438,7 @@ function playHit(eng,t,snd,when,semis,hitN,stepAbs,stepDur){
   const fx=t.fx,c=eng.c;let buf=snd.buffer;if(fx.reverse)buf=reversed(buf);
   let off=0,dur=buf.duration;
   if(fx.chop>1){dur=buf.duration/fx.chop;const idx=fx.chopMode==="random"?Math.floor(hash01(stepAbs*31+t.seed)*fx.chop):hitN%fx.chop;off=idx*dur;}
-  let rate=Math.pow(2,(fx.pitch+(tonal(snd)?inKey(semis):semis))/12);
+  let rate=Math.pow(2,(fx.pitch+(tonal(snd)&&!t.raw?inKey(semis):semis))/12);
   const gate=fx.length>0?fx.length*stepDur:0;
   if(fx.fit)rate*=dur/((fx.length||16)*stepDur);
   rate=clamp(rate,1/16,16);
@@ -437,7 +465,7 @@ function sanitizeFx(f){f=f||{};const d=defaultFx();const num=(v,a,b,def)=>{v=Num
     drive:num(f.drive,0,1,0),delay:num(f.delay,0,1,0),reverb:num(f.reverb,0,1,0),vol:num(f.vol,-30,6,0),pan:num(f.pan,-1,1,0)};}
 
 /* ---------- transport ---------- */
-let playing=false,timer=null,nextBase=0,stepN=0;const counts={};const uiQueue=[];
+let playing=false,timer=null,nextBase=0,stepN=0,transportT0=0;const counts={};const uiQueue=[];
 const stepDur=()=>60/state.bpm/4;
 function scheduleStep(eng,n,when,cnt,sd){
   const s=n%16,bar=Math.floor(n/16)%SONG_BARS;
@@ -446,8 +474,8 @@ function scheduleStep(eng,n,when,cnt,sd){
 }
 function click(when,accent){const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=accent?1600:1000;g.gain.setValueAtTime(.0001,when);g.gain.exponentialRampToValueAtTime(.35,when+.002);g.gain.exponentialRampToValueAtTime(.0001,when+.05);o.connect(g);g.connect(ctx.destination);o.start(when);o.stop(when+.06);}
 function tick(){const sd=stepDur();while(nextBase<ctx.currentTime+.12){const when=nextBase+((stepN%2)?state.swing*sd:0);scheduleStep(live,stepN,when,counts,sd);if(settings.metro&&stepN%4===0)click(nextBase,stepN%16===0);uiQueue.push({n:stepN,time:when});nextBase+=sd;stepN++;}}
-function start(){ctx.resume();live.setTempo(state.bpm);stepN=0;for(const k in counts)delete counts[k];nextBase=ctx.currentTime+.06;if(settings.countIn){const beat=60/state.bpm;for(let i=0;i<4;i++)click(nextBase+i*beat,i===0);nextBase+=4*beat;}playing=true;tick();timer=setInterval(tick,25);setPlayUI();requestAnimationFrame(drawLoop);}
-function stop(){playing=false;clearInterval(timer);uiQueue.length=0;setPlayUI();markNow(-1,-1);$("pos").textContent="Bar 1 · step 1";}
+function start(){ctx.resume();live.setTempo(state.bpm);stepN=0;for(const k in counts)delete counts[k];nextBase=ctx.currentTime+.06;if(settings.countIn){const beat=60/state.bpm;for(let i=0;i<4;i++)click(nextBase+i*beat,i===0);nextBase+=4*beat;}transportT0=nextBase;playing=true;tick();timer=setInterval(tick,25);setPlayUI();requestAnimationFrame(drawLoop);}
+function stop(){if(rec.keys)stopRecKeys();if(rec.mic)stopRecMic();playing=false;clearInterval(timer);uiQueue.length=0;setPlayUI();markNow(-1,-1);$("pos").textContent="Bar 1 · step 1";}
 function setPlayUI(){$("playLbl").textContent=playing?"Stop":"Play";$("playBtn").setAttribute("aria-label",playing?"Stop":"Play");$("playIcon").innerHTML=playing?'<rect x="3" y="3" width="10" height="10" rx="1"/>':'<path d="M3 2l11 6-11 6z"/>';}
 let curS=-1,curB=-1;
 function drawLoop(){if(!playing)return;let ev=null;while(uiQueue.length&&uiQueue[0].time<=ctx.currentTime)ev=uiQueue.shift();if(ev){const s=ev.n%16,b=Math.floor(ev.n/16)%SONG_BARS;markNow(s,b);$("pos").textContent=`Bar ${b+1} · step ${s+1}`;}requestAnimationFrame(drawLoop);}
@@ -678,7 +706,7 @@ $("exportBtn").onclick=async()=>{
 /* ---------- play live: on-screen keys, computer keys, MIDI ---------- */
 let octave=0;const held=new Map();
 function liveSnd(){return soundById($("liveSound").value)||sounds[0];}
-function noteOn(semis,vel=1,key=semis){ctx.resume();noteOff(key);const snd=liveSnd();if(!snd)return;const src=ctx.createBufferSource(),g=ctx.createGain();src.buffer=snd.buffer;
+function noteOn(semis,vel=1,key=semis){ctx.resume();noteOff(key);const snd=liveSnd();if(!snd)return;if(rec.keys)recNote(semis);const src=ctx.createBufferSource(),g=ctx.createGain();src.buffer=snd.buffer;
   src.playbackRate.value=clamp(Math.pow(2,semis/12),1/16,16);const now=ctx.currentTime;g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(.85*vel,now+.004);
   src.connect(g);g.connect(live.master);src.start(now);held.set(key,{src,g});src.onended=()=>{if(held.get(key)?.src===src)held.delete(key);try{g.disconnect();}catch(e){}};
   const el=document.querySelector(`.pk[data-k="${key}"]`);if(el)el.classList.add("down");}
@@ -710,6 +738,42 @@ $("midiBtn").onclick=async()=>{const st=$("midiState");
 /* ---------- start in a working state ---------- */
 renderSounds();fillLiveSelect();
 try{const k=keywordPlan($("prompt").value);applyPlan(k);showResult("Loaded an example built from the prompt above: "+k.summary+" Press Play.");}catch(e){renderTracks();}
+/* ---------- record ---------- */
+const rec={keys:false,mic:false,track:null,notes:0,stream:null,mr:null,chunks:[],recT:0,lead:0,takes:0,timer:null};
+function setRecUI(){const k=$("recKeysBtn"),m=$("recMicBtn");k.className="btn rec"+(rec.keys?" on":"");m.className="btn rec"+(rec.mic?" on":"");
+  k.setAttribute("aria-pressed",rec.keys);m.setAttribute("aria-pressed",rec.mic);k.lastChild.textContent=rec.keys?"Stop recording":"Record keyboard";m.lastChild.textContent=rec.mic?"Stop recording":"Record mic";}
+function recNote(semis){const t=rec.track;if(!t||!playing)return;const idx=Math.round((ctx.currentTime-transportT0)/stepDur());if(idx<0)return;t.steps[((idx%16)+16)%16]=semis;rec.notes++;renderTracks();}
+function startRecKeys(){if(rec.mic){toast("Stop the mic recording first.");return;}const snd=liveSnd();if(!snd)return;
+  const t=newTrack(snd.id);t.raw=true;state.tracks.push(t);rec.track=t;rec.notes=0;rec.keys=true;if(!playing)start();renderTracks();setRecUI();
+  $("recState").textContent=`Recording the keyboard into a new ${snd.name} track. Play along; notes snap to the nearest step and loop every bar. Press Stop recording when you're done.`;}
+function stopRecKeys(){if(!rec.keys)return;rec.keys=false;const t=rec.track,snd=t&&soundById(t.soundId);rec.track=null;
+  if(t&&!rec.notes){state.tracks=state.tracks.filter(x=>x!==t);live.drop(t.id);$("recState").textContent="Nothing was played, so no track was added.";}
+  else if(t)$("recState").textContent=`Added a ${snd?snd.name:"keyboard"} track from your playing (${rec.notes} note${rec.notes===1?"":"s"}). Tap steps to tidy it up.`;
+  renderTracks();setRecUI();}
+function micUnavailable(e){const denied=e&&(e.name==="NotAllowedError"||e.name==="SecurityError");
+  $("recState").textContent=denied?"The microphone wasn't allowed here. If your browser asked, allow it and try again. The desktop app records straight from your audio interface.":"This view can't reach a microphone. The desktop app records straight from your audio interface.";}
+function decodeBuf(ab){return new Promise((res,rej)=>{const p=ctx.decodeAudioData(ab,res,rej);if(p&&p.then)p.then(res,rej);});}
+async function startRecMic(){if(rec.keys)stopRecKeys();
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){micUnavailable();return;}
+  let stream;try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});}catch(e){micUnavailable(e);return;}
+  ctx.resume();if(playing)stop();
+  rec.stream=stream;rec.chunks=[];let mr;try{mr=new MediaRecorder(stream);}catch(e){stream.getTracks().forEach(x=>x.stop());micUnavailable();return;}rec.mr=mr;
+  mr.ondataavailable=e=>{if(e.data&&e.data.size)rec.chunks.push(e.data);};
+  mr.onstart=()=>{rec.recT=ctx.currentTime;start();rec.lead=Math.max(0,transportT0-rec.recT);};
+  mr.onstop=finishMic;rec.mic=true;setRecUI();
+  $("recState").textContent="Recording from your mic. The song plays from bar 1; use headphones so it doesn't record the speakers. Press Stop recording when you're done.";
+  mr.start();rec.timer=setTimeout(()=>{if(rec.mic){stopRecMic();toast("Takes stop after 2 minutes in this demo.");}},120000);}
+function stopRecMic(){if(!rec.mic)return;rec.mic=false;clearTimeout(rec.timer);try{rec.mr.stop();}catch(e){}try{rec.stream.getTracks().forEach(x=>x.stop());}catch(e){}setRecUI();$("recState").textContent="Saving the take…";if(playing)stop();}
+async function finishMic(){try{const blob=new Blob(rec.chunks,{type:(rec.mr&&rec.mr.mimeType)||"audio/webm"});const raw=await decodeBuf(await blob.arrayBuffer());
+    const off=Math.min(raw.length-1,Math.max(0,Math.round(rec.lead*raw.sampleRate)));const len=raw.length-off;if(len<raw.sampleRate*.1)throw new Error("short");
+    const buf=ctx.createBuffer(raw.numberOfChannels,len,raw.sampleRate);for(let c=0;c<raw.numberOfChannels;c++)buf.copyToChannel(raw.getChannelData(c).subarray(off),c);
+    const s=addSound(`Mic take ${++rec.takes}`,"yours",buf,"vocal");const t=newTrack(s.id);t.steps[0]=0;t.bars=Array.from({length:SONG_BARS},(_,i)=>i===0);state.tracks.push(t);
+    renderSounds();renderTracks();$("recState").textContent=`Added ${s.name} (${buf.duration.toFixed(1)} s) as a new sound, with a track that plays it from bar 1.`;}
+  catch(e){$("recState").textContent="That take was too short or couldn't be saved. Try again.";}
+  rec.chunks=[];}
+$("recKeysBtn").onclick=()=>rec.keys?stopRecKeys():startRecKeys();
+$("recMicBtn").onclick=()=>rec.mic?stopRecMic():startRecMic();
+
 /* ---------- settings ---------- */
 const KEYS=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 const MODES={quick:"About 1 credit an arrange, never over 2",standard:"About 12 credits an arrange, never over 48",pro:"About 23 credits an arrange, never over 93",studio:"About 65 credits an arrange, never over 183"};
@@ -754,6 +818,234 @@ $("kmReset").onclick=()=>{settings.keys=KEY_DEF.slice();listenIdx=-1;saveSetting
 renderKeyMap();
 $("setReset").onclick=()=>{Object.assign(settings,SET_DEF);settings.keys=KEY_DEF.slice();listenIdx=-1;changed();renderKeyMap();toast("Settings reset.");};
 applyTheme();showSettings();
-window.__lw={state,sounds,keywordPlan,buildPrompt,applyPlan,renderMix,encodeWav,zip,crc32,settings,km:{captureKey,listen:i=>{listenIdx=i;}}};
+/* ---------- AI producer settings (the 15 approved on Nov 21) ---------- */
+const AI_DEF={personality:"balanced",creativity:50,workMode:"ask",explain:true,takes:1,keepSound:"light",builtins:"fill",lyrics:true,snapshots:true,budget:2000,localOnly:true,refWords:"",refSound:""};
+const ai=Object.assign({},AI_DEF);
+try{const sv=JSON.parse(localStorage.getItem("loopwright-ai")||"{}");for(const k in AI_DEF)if(k in sv&&typeof sv[k]===typeof AI_DEF[k])ai[k]=sv[k];}catch(e){}
+const PERSONAS={minimal:"Minimal: few tracks, lots of space, only what the song needs",balanced:"Balanced: does what was asked with a touch of taste",experimental:"Experimental: unusual rhythms, bold effects, surprises",
+  hiphop:"Hip-hop producer",trap:"Trap producer",drill:"Drill producer",rnb:"R&B producer",house:"House producer",lofi:"Lo-fi producer",gospel:"Gospel producer",pop:"Pop producer",ambient:"Ambient producer"};
+const PERSONA_GENRE={hiphop:"hip-hop",trap:"trap",drill:"drill",rnb:"chill",house:"house",lofi:"lo-fi",gospel:"chill",pop:"dance",ambient:"ambient"};
+let memory={prompts:[],kept:[],undone:[]};
+try{const m=JSON.parse(localStorage.getItem("loopwright-ai-memory")||"{}");for(const k in memory)if(Array.isArray(m[k]))memory[k]=m[k].filter(x=>typeof x==="string").slice(-8);}catch(e){}
+let usage={month:"",used:0};
+try{const u=JSON.parse(localStorage.getItem("loopwright-ai-usage")||"{}");if(typeof u.month==="string"&&Number.isFinite(u.used))usage=u;}catch(e){}
+const thisMonth=()=>new Date().toISOString().slice(0,7);
+if(usage.month!==thisMonth())usage={month:thisMonth(),used:0};
+const saveAi=()=>{try{localStorage.setItem("loopwright-ai",JSON.stringify(ai));}catch(e){}};
+const saveMem=()=>{try{localStorage.setItem("loopwright-ai-memory",JSON.stringify(memory));}catch(e){}};
+const saveUsage=()=>{try{localStorage.setItem("loopwright-ai-usage",JSON.stringify(usage));}catch(e){}};
+const remember=(k,v)=>{if(!v)return;memory[k]=memory[k].filter(x=>x!==v).concat(String(v).slice(0,200)).slice(-8);saveMem();renderAi();};
+const RUN_CREDITS={quick:1,standard:12,pro:23,studio:65};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* snapshots and undo */
+const snaps=[];
+const snapOf=()=>({bpm:state.bpm,swing:state.swing,tracks:state.tracks.map(t=>JSON.parse(JSON.stringify({id:t.id,soundId:t.soundId,seed:t.seed,mute:t.mute,locked:!!t.locked,steps:t.steps,bars:t.bars,fx:t.fx})))});
+function restore(s){for(const t of state.tracks)live.drop(t.id);
+  state.tracks=s.tracks.map(o=>Object.assign(newTrack(o.soundId,{steps:o.steps.slice(),bars:o.bars.slice(),fx:o.fx}),{id:o.id,seed:o.seed,mute:o.mute,locked:o.locked}));
+  state.bpm=s.bpm;state.swing=s.swing;$("bpm").value=state.bpm;$("swing").value=state.swing;live.setTempo(state.bpm);renderTracks();updUndo();}
+function takeSnap(){if(ai.snapshots){snaps.push(snapOf());if(snaps.length>20)snaps.shift();}updUndo();}
+function updUndo(){const b=$("aiUndo");if(b){b.hidden=!snaps.length;b.textContent=snaps.length>1?`Undo AI change (${snaps.length})`:"Undo AI change";}}
+
+/* the rules on the user's own sound, built-in sounds and protected tracks */
+const isOwn=snd=>snd&&snd.origin!=="free";
+const KEEP_FX={full:["vol","pan","length"],light:["vol","pan","length","filterType","cutoff","drive","delay","reverb"],open:null};
+function guardPlan(p){
+  const own=sounds.filter(isOwn),ownGroups=new Set(own.map(s=>s.group).filter(Boolean)),notes=[];
+  let tracks=(p.tracks||[]).filter(pt=>{const snd=soundById(pt.sound);if(!snd)return false;if(isOwn(snd))return true;
+    if(ai.builtins==="mine"){notes.push("left out built-in "+snd.name+" (Only mine)");return false;}
+    if(ai.builtins==="fill"&&own.length&&ownGroups.has(snd.group)){notes.push("used your "+snd.group+" instead of built-in "+snd.name);return false;}
+    return true;});
+  const allow=KEEP_FX[ai.keepSound];
+  if(allow)tracks=tracks.map(pt=>{const snd=soundById(pt.sound);if(!isOwn(snd))return pt;const fx=Object.assign({},pt.fx||{}),prev=state.tracks.find(t=>t.soundId===pt.sound),base=prev?prev.fx:defaultFx();
+    let cut=false;for(const k in defaultFx()){if(!allow.includes(k)){if(fx[k]!==undefined&&fx[k]!==base[k])cut=true;fx[k]=base[k];}}
+    if(cut)notes.push("kept "+snd.name+" as recorded (Keep my sound: "+ai.keepSound+")");return Object.assign({},pt,{fx});});
+  const locked=state.tracks.filter(t=>t.locked);
+  tracks=tracks.filter(pt=>!locked.some(t=>t.soundId===pt.sound));
+  if(locked.length)notes.push(locked.length+" protected track"+(locked.length>1?"s":"")+" left untouched");
+  return{plan:Object.assign({},p,{tracks:tracks.slice(0,Math.max(0,10-locked.length))}),notes:[...new Set(notes)],locked};
+}
+function applyGuarded(g){
+  const lockedSnap=g.locked.map(t=>({t,i:state.tracks.indexOf(t)}));
+  if(!g.plan.tracks.length&&!lockedSnap.length)throw new Error(ai.builtins==="mine"?"only_mine_empty":"no usable tracks");
+  if(g.plan.tracks.length)applyPlan(g.plan);else{for(const t of state.tracks)if(!t.locked)live.drop(t.id);state.tracks=[];}
+  for(const{t,i}of lockedSnap.sort((a,b)=>a.i-b.i))state.tracks.splice(Math.min(i,state.tracks.length),0,t);
+  for(const t of g.locked)live.apply(t);
+  renderTracks();
+}
+
+/* explain my changes */
+function diff(before,after){const out=[],nm=id=>(soundById(id)||{name:id}).name;
+  if(before.bpm!==after.bpm)out.push(`Tempo ${before.bpm} → ${after.bpm} BPM`);
+  if(Math.abs(before.swing-after.swing)>.001)out.push(`Swing ${Math.round(before.swing*100)}% → ${Math.round(after.swing*100)}%`);
+  const bs=new Map(before.tracks.map(t=>[t.soundId,t])),as=new Map(after.tracks.map(t=>[t.soundId,t]));
+  for(const[id,t]of as){const o=bs.get(id);if(!o){out.push(`Added ${nm(id)}, ${t.steps.filter(v=>v!==null).length} hits a bar`);continue;}
+    const ch=[];if(JSON.stringify(o.steps)!==JSON.stringify(t.steps))ch.push("new pattern");if(JSON.stringify(o.bars)!==JSON.stringify(t.bars))ch.push("plays in different bars");
+    for(const k in t.fx)if(JSON.stringify(o.fx[k])!==JSON.stringify(t.fx[k]))ch.push(k==="vol"?`volume ${Math.round(o.fx.vol)} → ${Math.round(t.fx.vol)} dB`:k);
+    if(ch.length)out.push(`${nm(id)}: ${ch.slice(0,4).join(", ")}${ch.length>4?" and more":""}`);}
+  for(const[id]of bs)if(!as.has(id))out.push(`Removed ${nm(id)}`);
+  return out.length?out:["No changes"];}
+
+/* prompt additions */
+function aiRules(){const c=ai.creativity,r=[];
+  r.push(`Producer personality: ${PERSONAS[ai.personality]||PERSONAS.balanced}.`);
+  r.push(`Creativity ${c}/100: ${c<=30?"stay very close to the user's sounds and their exact words; make small, safe changes":c>=70?"take liberties: new sections, surprising effects, flipped patterns, as long as you use only listed sounds":"do what was asked and add a touch of your own taste"}. This changes how bold your ideas are, not how much you do.`);
+  r.push(ai.builtins==="mine"?"Use ONLY the user's own sounds. Do not use any free built-in sound.":ai.builtins==="fill"?"Prefer the user's own sounds; use a free built-in only for a role none of their sounds covers.":"Mix the user's sounds and free built-ins freely.");
+  r.push(ai.keepSound==="full"?"Keep the user's own audio as recorded: on their tracks set only steps, bars, vol, pan and length.":ai.keepSound==="light"?"On the user's own tracks you may add filter, drive, delay and reverb, but do not pitch, reverse, chop or fit them.":"You may process the user's own audio in any way listed.");
+  const lk=state.tracks.filter(t=>t.locked).map(t=>t.soundId);if(lk.length)r.push(`These tracks are protected; don't include them, they stay as they are: ${lk.join(", ")}.`);
+  if(ai.refWords.trim())r.push(`Reference vibe in the user's words: """${ai.refWords.trim().slice(0,200)}""".`);
+  const rs=soundById(ai.refSound);if(rs)r.push(`Reference track: the user's own "${rs.name}" (${rs.duration.toFixed(1)} s). Match its energy and mood; never copy it.`);
+  if(memory.prompts.length)r.push(`Earlier prompts in this project: ${JSON.stringify(memory.prompts.slice(-5))}.`);
+  if(memory.kept.length)r.push(`Ideas the user kept: ${JSON.stringify(memory.kept.slice(-4))}.`);
+  if(memory.undone.length)r.push(`Ideas the user undid; avoid repeating them: ${JSON.stringify(memory.undone.slice(-4))}.`);
+  return r;}
+const wantsLyrics=t=>ai.lyrics&&/\blyric|\bverse\b|\bhook\b|words for|write (me )?(a |some )?(song|bars|lines)|rhymes?\b/i.test(t);
+function fullPrompt(text,take){let p=buildPrompt(text);const extra=aiRules();
+  if(take>0)extra.push(`This is take ${take+1} of ${ai.takes}: make it clearly different from the other takes.`);
+  if(wantsLyrics(text))extra.push(`Also write lyrics for the user to record themselves, as plain text in a "lyrics" field (up to 16 short lines). Never suggest generating or imitating a voice.`);
+  return p.replace("Reply with JSON only",`Producer settings:\n- ${extra.join("\n- ")}\n\nReply with JSON only`).replace(`"summary":"`,(wantsLyrics(text)?`"lyrics":"optional text",`:"")+`"summary":"`);}
+
+/* keyword fallback: personality, creativity, reference words and takes */
+function keywordTake(text,take){
+  let t=text;const genre=PERSONA_GENRE[ai.personality];
+  if(genre&&!/lo-?fi|chill|study|trap|drill|house|disco|dance|techno|rave|reggaeton|dembow|latin|ambient|drone|calm|hip.?hop/i.test(t))t+=" "+genre;
+  if(ai.refWords.trim())t+=" "+ai.refWords;
+  const p=keywordPlan(t);const r=mulberry(Date.now()%1e6+take*977);
+  const bold=ai.personality==="experimental"?Math.max(ai.creativity,75):ai.creativity;
+  if(ai.personality==="minimal")p.tracks=p.tracks.filter(x=>!/^(hat|clap|keys)$/.test(x.sound)||p.tracks.length<=3);
+  const amt=(bold-50)/50+take*.35;
+  if(amt>0)for(const x of p.tracks){for(let i=0;i<16;i++)if(r()<amt*.18)x.steps[i]=x.steps[i]===null?0:(r()<.5?null:x.steps[i]);
+    x.fx=Object.assign({},x.fx);if(r()<amt*.5)x.fx.delay=Math.min(1,(x.fx.delay||0)+.25);if(r()<amt*.4)x.fx.reverb=Math.min(1,(x.fx.reverb||0)+.3);if(r()<amt*.25&&!/kick|snare|hat|clap/.test(x.sound))x.fx.reverse=true;}
+  if(take>0){p.bpm=clamp(p.bpm+(take%2?4:-4)*take,50,190);p.summary="Take "+String.fromCharCode(65+take)+": "+p.summary;}
+  return p;}
+
+/* run: work mode, takes, budget */
+let pending=null,takes=[],activeTake=0,ctl2=null;
+function showAi(html,kind){const r=$("result");r.hidden=false;r.dataset.kind=kind||"ok";r.innerHTML=html;}
+function lyricBox(p){return p&&typeof p.lyrics==="string"&&p.lyrics.trim()?`<div class="ai-lyrics"><span class="label">Lyrics for you to record</span><pre>${esc(p.lyrics.trim().slice(0,2000))}</pre></div>`:"";}
+function renderOutcome(p,src,mode,notes,changes){
+  const tk=takes.length>1?`<div class="ai-takes">${takes.map((_,i)=>`<button type="button" class="btn tiny${i===activeTake?" primary":""}" data-take="${i}">Take ${String.fromCharCode(65+i)}</button>`).join("")}</div>`:"";
+  const ex=ai.explain||mode==="suggest"?`<ul class="ai-changes">${changes.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>`:"";
+  const nt=notes.length?`<div class="small muted">Your rules: ${esc(notes.join("; "))}.</div>`:"";
+  const lyr=wantsLyrics(lastText)&&!lyricBox(p)?`<div class="small muted">${src==="Claude"?"Claude didn't send lyrics this time.":"Lyric ideas need Claude, which isn't available in this view."}</div>`:lyricBox(p);
+  let act="";
+  if(mode==="suggest")act=`<div class="ask-row"><span class="small muted">Suggest only: nothing changed yet.</span><button type="button" class="btn primary tiny" data-ai="use">Use this</button><button type="button" class="btn tiny ghost" data-ai="discard">Discard</button></div>`;
+  else if(mode==="ask")act=`<div class="ask-row"><span class="small muted">Previewing. Keep it?</span><button type="button" class="btn primary tiny" data-ai="keep">Keep</button><button type="button" class="btn tiny ghost" data-ai="undo">Undo</button></div>`;
+  showAi(`<div>${esc(src)}: ${esc(p.summary||"Arranged.")}</div>${tk}${ex}${nt}${lyr}${act}`,"ok");
+}
+let lastText="",lastSrc="";
+function present(i){activeTake=i;const p=takes[i];if(!p)return;const before=pending?pending.before:snapOf();
+  let g,changes;
+  if(ai.workMode==="suggest"){g=guardPlan(p);const sim=snapOf();sim.bpm=Number.isFinite(+p.bpm)?clamp(Math.round(+p.bpm),50,190):sim.bpm;sim.swing=Number.isFinite(+p.swing)?clamp(+p.swing,0,.3):sim.swing;
+    sim.tracks=g.locked.map(t=>({soundId:t.soundId,steps:t.steps,bars:t.bars,fx:t.fx})).concat(g.plan.tracks.map(pt=>({soundId:pt.sound,steps:Array.from({length:16},(_,k)=>Array.isArray(pt.steps)&&pt.steps[k]!=null&&pt.steps[k]!==false?Math.round(+pt.steps[k]||0):null),bars:Array.from({length:SONG_BARS},(_,k)=>Array.isArray(pt.bars)&&pt.bars.length?!!pt.bars[k]:true),fx:sanitizeFx(pt.fx)})));
+    changes=diff(before,sim);pending={before,g,p};}
+  else{if(pending)restore(pending.before);else takeSnap();
+    g=guardPlan(p);applyGuarded(g);changes=diff(before,snapOf());pending={before,g,p};if(!playing)start();
+    if(ai.workMode==="auto"){remember("kept",p.summary);if(takes.length<2)pending=null;}}
+  renderOutcome(p,lastSrc,ai.workMode,g.notes,changes);}
+$("result").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.take!==undefined){present(+b.dataset.take);return;}
+  const a=b.dataset.ai;if(!a||!pending)return;
+  if(a==="use"){takeSnap();applyGuarded(pending.g);remember("kept",pending.p.summary);if(!playing)start();showAi(`<div>Applied: ${esc(pending.p.summary||"")}</div>`);pending=null;takes=[];}
+  else if(a==="discard"){remember("undone",pending.p.summary);showAi("<div>Discarded. Nothing changed.</div>");pending=null;takes=[];}
+  else if(a==="keep"){remember("kept",pending.p.summary);showAi(`<div>Kept: ${esc(pending.p.summary||"")}</div>`);pending=null;takes=[];}
+  else if(a==="undo"){remember("undone",pending.p.summary);restore(pending.before);if(snaps.length)snaps.pop();updUndo();showAi("<div>Undone. You're back where you were.</div>");pending=null;takes=[];}
+});
+async function runAi(){
+  const text=$("prompt").value.trim();if(!text){$("prompt").focus();return;}
+  ctx.resume();
+  if(pending&&ai.workMode==="ask"){remember("kept",pending.p.summary);}
+  pending=null;takes=[];activeTake=0;lastText=text;
+  const n=clamp(ai.takes,1,4),cost=(RUN_CREDITS[settings.mode]||12)*n;
+  if(ai.budget>0&&usage.used+cost>ai.budget){showAi(`<div>Monthly credit budget reached: ${usage.used} of ${ai.budget} credits used this month. Raise it in Settings to keep going.</div>`,"err");return;}
+  remember("prompts",text);
+  if(sampleFn){ctl2=new AbortController();$("askBtn").disabled=true;$("stopAsk").hidden=false;$("askState").textContent=n>1?`Claude is making ${n} takes…`:"Claude is arranging your sounds…";
+    try{const res=await Promise.allSettled(Array.from({length:n},(_,i)=>sampleFn.json(fullPrompt(text,i),{signal:ctl2.signal,modelTier:TIERS[settings.mode]||"default"})));
+      takes=res.filter(r=>r.status==="fulfilled"&&r.value&&Array.isArray(r.value.tracks)).map(r=>r.value);
+      if(!takes.length){const e=(res.find(r=>r.status==="rejected")||{}).reason;throw e||new Error("none");}
+      usage.used+=(RUN_CREDITS[settings.mode]||12)*takes.length;saveUsage();lastSrc="Claude";}
+    catch(e){if(e&&e.code==="cancelled"){showAi("<div>Stopped. Nothing changed.</div>","err");return;}
+      const why=(e&&ERR[e.code])||"Claude couldn't answer";takes=Array.from({length:n},(_,i)=>keywordTake(text,i));lastSrc=why+", so the keyword matcher made this";}
+    finally{$("askBtn").disabled=false;$("stopAsk").hidden=true;$("askState").textContent="";renderAi();}}
+  else{takes=Array.from({length:n},(_,i)=>keywordTake(text,i));lastSrc="Keyword matcher";}
+  try{present(0);}catch(e){showAi(e&&e.message==="only_mine_empty"?"<div>Built-in sounds is set to Only mine, and none of your sounds fit yet. Add your sounds, or switch it to Fill gaps.</div>":"<div>Couldn't build anything from that. Try naming a style, like lo-fi or house.</div>","err");pending=null;}
+}
+$("askBtn").onclick=runAi;
+$("stopAsk").onclick=()=>{ctl&&ctl.abort();ctl2&&ctl2.abort();};
+(()=>{const u=document.createElement("button");u.type="button";u.className="btn";u.id="aiUndo";u.hidden=true;u.textContent="Undo AI change";
+  u.onclick=()=>{const s=snaps.pop();if(s){if(pending)remember("undone",pending.p.summary);pending=null;takes=[];restore(s);showAi("<div>Undone. You're back where you were.</div>");}updUndo();};
+  $("askState").before(u);})();
+
+/* protected tracks: a lock on every track */
+const baseRender=renderTracks;
+renderTracks=function(){baseRender();const heads=document.querySelectorAll("#tracks .trk-head");
+  state.tracks.forEach((t,i)=>{const h=heads[i];if(!h)return;const b=document.createElement("button");b.type="button";b.className="btn tiny lock"+(t.locked?" on":"");
+    b.textContent=t.locked?"Protected":"Protect";b.title=t.locked?"The AI can't change or remove this track":"Stop the AI from touching this track";b.setAttribute("aria-pressed",!!t.locked);
+    b.onclick=()=>{t.locked=!t.locked;renderTracks();};const sp=h.querySelector(".sp");sp?sp.after(b):h.appendChild(b);
+    if(t.locked)h.parentElement.classList.add("locked");});};
+renderTracks();
+
+/* settings UI */
+(()=>{const grid=document.querySelector("#h-settings").closest(".panel").querySelector(".set-grid");const col=document.createElement("div");col.className="set-col";col.setAttribute("role","group");col.setAttribute("aria-labelledby","h-set-ai");
+  col.innerHTML=`<h3 id="h-set-ai">AI producer</h3>
+  <label class="set-row"><span>Producer personality<span class="hint" id="aiPersLbl"></span></span><select id="aiPers" class="sel">${Object.keys(PERSONAS).map(k=>`<option value="${k}">${({minimal:"Minimal",balanced:"Balanced",experimental:"Experimental",hiphop:"Hip-hop",trap:"Trap",drill:"Drill",rnb:"R&amp;B",house:"House",lofi:"Lo-fi",gospel:"Gospel",pop:"Pop",ambient:"Ambient"})[k]}</option>`).join("")}</select></label>
+  <label class="set-row"><span>Creativity<span class="hint" id="aiCreLbl"></span></span><input type="range" id="aiCre" min="0" max="100" step="5" style="width:120px;accent-color:var(--accent)"></label>
+  <label class="set-row"><span>Work mode<span class="hint" id="aiModeLbl"></span></span><select id="aiMode" class="sel"><option value="suggest">Suggest only</option><option value="ask">Ask before applying</option><option value="auto">Auto-apply</option></select></label>
+  <label class="set-row"><span>Explain my changes<span class="hint">Lists what changed after each run</span></span><input type="checkbox" id="aiExplain"></label>
+  <label class="set-row"><span>Takes per prompt<span class="hint" id="aiTakesLbl"></span></span><select id="aiTakes" class="sel"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
+  <label class="set-row"><span>Reference vibe<span class="hint">Words, or one of your own sounds</span></span><input type="text" id="aiRefWords" maxlength="200" placeholder="warm, late night, sparse" class="sel" style="width:150px"></label>
+  <label class="set-row"><span></span><select id="aiRefSound" class="sel"></select></label>
+  <div class="set-row"><span>Producer memory<span class="hint" id="aiMemLbl"></span></span><button class="btn" id="aiMemClear" type="button">Clear</button></div>
+  <h3 style="margin-top:12px" id="h-set-own">Your sound, your rules</h3>
+  <label class="set-row"><span>Keep my sound<span class="hint" id="aiKeepLbl"></span></span><select id="aiKeep" class="sel"><option value="full">Full lock</option><option value="light">Light</option><option value="open">Open</option></select></label>
+  <div class="set-row"><span>Protected tracks<span class="hint" id="aiLockLbl"></span></span></div>
+  <label class="set-row"><span>Built-in sounds<span class="hint" id="aiBuiltLbl"></span></span><select id="aiBuilt" class="sel"><option value="mine">Only mine</option><option value="fill">Fill gaps</option><option value="mix">Mix freely</option></select></label>
+  <label class="set-row"><span>Lyric helper<span class="hint">Writes words for you to record. Never a fake voice.</span></span><input type="checkbox" id="aiLyrics"></label>
+  <h3 style="margin-top:12px">Safety and spend</h3>
+  <label class="set-row"><span>Snapshot before every AI change<span class="hint">Undo AI change takes you straight back</span></span><input type="checkbox" id="aiSnap"></label>
+  <label class="set-row"><span>Monthly credit budget<span class="hint" id="aiBudLbl"></span></span><input type="number" id="aiBud" min="0" max="100000" step="50" class="num"></label>
+  <label class="set-row"><span>Local-only audio<span class="hint" id="aiLocalLbl"></span></span><input type="checkbox" id="aiLocal"></label>
+  <div class="set-row"><span>What the AI sees<span class="hint">The exact text sent for your current prompt</span></span><button class="btn" id="aiSeen" type="button">Show</button></div>
+  <pre class="ai-seen" id="aiSeenBox" hidden></pre>
+  <div class="set-row"><span>Custom key map<span class="hint">Under Keyboard keys</span></span></div>
+  <div class="set-row"><span></span><button class="btn" id="aiReset" type="button">Reset AI settings</button></div>`;
+  grid.appendChild(col);})();
+const MODE_HINT={suggest:"Shows the changes. You choose whether to use them.",ask:"Plays the change as a preview, then Keep or Undo",auto:"Applies straight away. Undo is one tap."};
+const KEEP_HINT={full:"Only placement and volume on your audio",light:"Adds EQ and effects, never pitch, chop or stretch",open:"May also chop, pitch, reverse and stretch"};
+const BUILT_HINT={mine:"Only your sounds",fill:"Built-ins only where you have nothing for that part",mix:"Your sounds and built-ins together"};
+function renderAi(){if(!$("aiPers"))return;
+  $("aiPers").value=ai.personality;$("aiPersLbl").textContent=(PERSONAS[ai.personality]||"").replace(/^[^:]+: /,"");
+  $("aiCre").value=ai.creativity;$("aiCreLbl").textContent=`${ai.creativity}: ${ai.creativity<=30?"faithful":ai.creativity>=70?"bold":"balanced"}`;
+  $("aiMode").value=ai.workMode;$("aiModeLbl").textContent=MODE_HINT[ai.workMode];$("aiExplain").checked=ai.explain;
+  $("aiTakes").value=String(ai.takes);$("aiTakesLbl").textContent=ai.takes>1?`${ai.takes} versions to compare, about ${(RUN_CREDITS[settings.mode]||12)*ai.takes} credits a prompt`:"One version per prompt";
+  $("aiRefWords").value=ai.refWords;const rs=$("aiRefSound");rs.innerHTML='<option value="">No reference track</option>'+sounds.filter(isOwn).map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");rs.value=soundById(ai.refSound)?ai.refSound:"";
+  $("aiMemLbl").textContent=memory.prompts.length?`${memory.prompts.length} prompts, ${memory.kept.length} kept, ${memory.undone.length} undone`:"Nothing remembered yet";
+  $("aiKeep").value=ai.keepSound;$("aiKeepLbl").textContent=KEEP_HINT[ai.keepSound];
+  const nl=state.tracks.filter(t=>t.locked).length;$("aiLockLbl").textContent=nl?`${nl} protected. Use Protect on any track.`:"Use Protect on any track to lock it";
+  $("aiBuilt").value=ai.builtins;$("aiBuiltLbl").textContent=BUILT_HINT[ai.builtins];$("aiLyrics").checked=ai.lyrics;$("aiSnap").checked=ai.snapshots;
+  $("aiBud").value=ai.budget;$("aiBudLbl").textContent=ai.budget>0?`${usage.used} of ${ai.budget} used this month${usage.used>=ai.budget*.8?". Nearly at the limit.":""}`:"No monthly limit";
+  $("aiLocal").checked=ai.localOnly;$("aiLocalLbl").textContent=ai.localOnly?"Audio never leaves this computer":"Cloud backup comes with accounts. Nothing is uploaded in this demo.";}
+const bindAi=(id,key,parse,ev="change")=>{$(id)["on"+ev]=()=>{ai[key]=parse($(id));saveAi();renderAi();};};
+bindAi("aiPers","personality",el=>PERSONAS[el.value]?el.value:"balanced");
+bindAi("aiCre","creativity",el=>clamp(Math.round(+el.value)||0,0,100),"input");
+bindAi("aiMode","workMode",el=>MODE_HINT[el.value]?el.value:"ask");
+bindAi("aiExplain","explain",el=>!!el.checked);
+bindAi("aiTakes","takes",el=>clamp(+el.value||1,1,4));
+bindAi("aiRefWords","refWords",el=>el.value.slice(0,200),"input");
+bindAi("aiRefSound","refSound",el=>el.value);
+bindAi("aiKeep","keepSound",el=>KEEP_HINT[el.value]?el.value:"light");
+bindAi("aiBuilt","builtins",el=>BUILT_HINT[el.value]?el.value:"fill");
+bindAi("aiLyrics","lyrics",el=>!!el.checked);
+bindAi("aiSnap","snapshots",el=>!!el.checked);
+bindAi("aiBud","budget",el=>clamp(Math.round(+el.value)||0,0,100000));
+bindAi("aiLocal","localOnly",el=>!!el.checked);
+$("aiMemClear").onclick=()=>{memory={prompts:[],kept:[],undone:[]};saveMem();renderAi();toast("Producer memory cleared for this project.");};
+$("aiSeen").onclick=()=>{const b=$("aiSeenBox");b.hidden=!b.hidden;if(!b.hidden)b.textContent=fullPrompt($("prompt").value.trim()||"(your prompt)",0);$("aiSeen").textContent=b.hidden?"Show":"Hide";};
+$("aiReset").onclick=()=>{Object.assign(ai,AI_DEF);saveAi();renderAi();toast("AI settings reset.");};
+const baseRenderSounds=renderSounds;renderSounds=function(){baseRenderSounds();renderAi();};
+renderAi();
+window.__lwAi={ai,guardPlan,applyGuarded,diff,keywordTake,fullPrompt,runAi,present,snaps,getMemory:()=>memory,getPending:()=>pending,getTakes:()=>takes};
+
+window.__lw={state,sounds,keywordPlan,buildPrompt,applyPlan,renderMix,encodeWav,zip,crc32,settings,km:{captureKey,listen:i=>{listenIdx=i;}},rec:{rec,startRecKeys,stopRecKeys,recNote,startRecMic,stop}};
 })();
 </script>

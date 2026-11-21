@@ -218,8 +218,8 @@ DOWNLOAD = """
 </div></section>
 <section style="padding-bottom:30px"><div class="wrap">
 <div class="dl">
-<div class="card"><span class="tag on">Recommended</span><h3>Mac with Apple chip</h3><p class="muted small">M1, M2, M3, M4 or newer. macOS 12 or later.</p><a class="btn primary" href="https://github.com/That1kid333/loopwright/releases/latest/download/Loopwright-mac-arm64.zip">Download for Apple chip</a><span class="muted small">115 MB · zip</span></div>
-<div class="card"><span class="tag">Older Macs</span><h3>Mac with Intel chip</h3><p class="muted small">Intel Macs, macOS 12 or later.</p><a class="btn" href="https://github.com/That1kid333/loopwright/releases/latest/download/Loopwright-mac-x64.zip">Download for Intel</a><span class="muted small">120 MB · zip</span></div>
+<div class="card"><span class="tag on">Recommended</span><h3>Mac with Apple chip</h3><p class="muted small">M1, M2, M3, M4 or newer. macOS 12 or later.</p><a class="btn primary" href="/downloads/Loopwright-mac-arm64.tar.xz" download>Download for Apple chip</a><span class="muted small">__ARM_MB__ MB</span></div>
+<div class="card"><span class="tag">Older Macs</span><h3>Mac with Intel chip</h3><p class="muted small">Intel Macs, macOS 12 or later.</p><a class="btn" href="/downloads/Loopwright-mac-x64.tar.xz" download>Download for Intel</a><span class="muted small">__X64_MB__ MB</span></div>
 <div class="card"><span class="tag">Coming later</span><h3>Windows</h3><p class="muted small">The Windows version comes after the Mac one.</p><button class="btn" disabled>Not yet</button></div>
 </div>
 <p class="muted small" style="margin-top:14px">Not sure which Mac you have? Apple menu &gt; About This Mac. "Chip: Apple M…" means Apple chip.</p>
@@ -227,13 +227,18 @@ DOWNLOAD = """
 <div class="panel" style="margin-top:28px"><h3>First time opening it</h3>
 <p class="muted" style="margin-top:6px">This early version isn't signed by Apple yet, so macOS asks you to confirm the first time.</p>
 <ol class="howto">
-<li>Open the zip in Downloads and drag <b style="color:var(--fg)">Loopwright</b> into Applications.</li>
+<li>Double-click the download in your Downloads folder to unpack it, then drag <b style="color:var(--fg)">Loopwright</b> into Applications.</li>
 <li>In Applications, right-click (or Control-click) Loopwright and choose <b style="color:var(--fg)">Open</b>, then <b style="color:var(--fg)">Open</b> again.</li>
 <li>If macOS only offers Move to Trash, open System Settings &gt; Privacy &amp; Security, scroll down and click <b style="color:var(--fg)">Open Anyway</b>.</li>
 <li>If it says the app "is damaged", open Terminal, paste this and press Return, then open the app again:</li>
 </ol>
 <pre>xattr -cr /Applications/Loopwright.app</pre>
+<p class="muted small" style="margin-top:10px">If double-clicking doesn't unpack it, run this in Terminal instead: <code>cd ~/Downloads &amp;&amp; tar -xf Loopwright-mac-*.tar.xz</code></p>
 </div>
 </div></section>
 """
+import os as _os
+_dl=_os.path.join(OUT,"downloads")
+_mb=lambda f: str(round(_os.path.getsize(_os.path.join(_dl,f))/1048576)) if _os.path.exists(_os.path.join(_dl,f)) else "?"
+DOWNLOAD=DOWNLOAD.replace("__ARM_MB__",_mb("Loopwright-mac-arm64.tar.xz")).replace("__X64_MB__",_mb("Loopwright-mac-x64.tar.xz"))
 page("download", "Download · Loopwright", "Download the Loopwright desktop app for Mac.", DOWNLOAD, "download")
