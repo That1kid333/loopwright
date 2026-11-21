@@ -147,6 +147,8 @@ if mode == "web":
         ('". Charged from your credits."', '". Used by the AI producer in the Mac app."'),
         ('"Arrange" asks Claude for a pattern built only from your listed sounds when this view allows it. Otherwise a keyword matcher does it.',
          '"Arrange" uses a free word matcher in the browser demo. The AI producer in the Mac app writes the full arrangement from your sounds.'),
+        ('<div class="aipop-head"><span class="label">AI producer</span>', '<div class="aipop-head"><span class="label">Word matcher</span>'),
+        ('`Undo AI change (${snaps.length})`:"Undo AI change"', '`Undo (${snaps.length})`:"Undo"'),
     ]:
         assert frag.count(a) >= 1, a[:60]
         frag = frag.replace(a, b)

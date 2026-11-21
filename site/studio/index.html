@@ -5,6 +5,7 @@
 /* Stand-alone shim: export saves through a normal download, and the AI producer
    calls Loopwright's own "arrange" server function with the signed-in user's session. */
 window.LW_LIVE = true;
+window.LW_DEMO = true;
 (function () {
   var FN = "https://vvllgdrpnieorcpweurz.supabase.co/functions/v1/arrange";
   var KEY = "sb_publishable_6iCD4SBhUOXgOoyyIT3qZA__dTbzZZF";
@@ -34,8 +35,92 @@ window.LW_LIVE = true;
   }
   var sample = function (input, opts) { return arrange(input, opts).then(function (p) { return { text: JSON.stringify(p), truncated: false }; }); };
   sample.json = arrange;
+  /* Keep the song and the studio's settings in the user's account, so a browser that forgets
+     (cleared data, another computer) gets them back. The browser copy stays as a fast cache. */
+  var PREF_KEYS = ["loopwright-settings", "loopwright-layout", "loopwright-layout-mine", "loopwright-ai", "loopwright-ai-memory"];
+  var LS = null; try { LS = window.localStorage; } catch (e) {}
+  var origSet = Storage.prototype.setItem;
+  function lsGet(k) { try { return LS ? LS.getItem(k) : null; } catch (e) { return null; } }
+  function lsSet(k, v) { try { if (LS) origSet.call(LS, k, v); } catch (e) {} }
+  var C = { uid: null, sb: null, started: false, projId: null, last: "", dirty: false, busy: false, prefTimer: 0 };
+  function status(text, bad) { var el = document.getElementById("lwsave"); if (el) { el.textContent = text; el.style.color = bad ? "var(--led, #ffb020)" : ""; } }
+  Storage.prototype.setItem = function (k, v) {
+    origSet.call(this, k, v);
+    if (this === LS && PREF_KEYS.indexOf(k) >= 0) { origSet.call(this, "loopwright-prefs-t", String(Date.now())); if (C.uid) { clearTimeout(C.prefTimer); C.prefTimer = setTimeout(pushPrefs, 1500); } }
+  };
+  function collectPrefs() { var o = {}; PREF_KEYS.forEach(function (k) { var v = lsGet(k); if (v != null) { try { o[k] = JSON.parse(v); } catch (e) {} } }); return o; }
+  async function pushPrefs() {
+    if (!C.uid) return;
+    var t = Number(lsGet("loopwright-prefs-t")) || Date.now();
+    var r = await C.sb.from("user_settings").upsert({ user_id: C.uid, studio_prefs: collectPrefs(), studio_prefs_at: new Date(t).toISOString() }, { onConflict: "user_id" });
+    if (r.error) status("Settings not saved to your account", true);
+  }
+  async function pullPrefs() {
+    var r = await C.sb.from("user_settings").select("studio_prefs,studio_prefs_at").eq("user_id", C.uid).maybeSingle();
+    if (r.error) return false;
+    var row = r.data, prefs = (row && row.studio_prefs) || {};
+    var localT = Number(lsGet("loopwright-prefs-t")) || 0, dbT = row && row.studio_prefs_at ? Date.parse(row.studio_prefs_at) : 0;
+    if (dbT > localT && Object.keys(prefs).length) {
+      var changed = false;
+      PREF_KEYS.forEach(function (k) { if (k in prefs) { var v = JSON.stringify(prefs[k]); if (lsGet(k) !== v) { lsSet(k, v); changed = true; } } });
+      lsSet("loopwright-prefs-t", String(dbT));
+      return changed;
+    }
+    if (localT > dbT && Object.keys(collectPrefs()).length) pushPrefs();
+    return false;
+  }
+  function songNow() { try { return JSON.stringify(window.__lw.song.get()); } catch (e) { return ""; } }
+  async function pushSong() {
+    if (!C.uid || C.busy || !C.last) return;
+    C.busy = true; C.dirty = false; status("Saving…");
+    var sg = JSON.parse(C.last), row = { arrangement: sg, bpm: sg.bpm, swing: Math.min(0.3, Math.max(0, Number(sg.swing) || 0)), length_bars: 8, updated_at: new Date().toISOString() }, r;
+    try {
+      if (C.projId) r = await C.sb.from("projects").update(row).eq("id", C.projId).select("id");
+      if (!C.projId || (r && !r.error && !(r.data && r.data.length))) { row.title = "My song"; r = await C.sb.from("projects").insert(row).select("id"); if (r.data && r.data[0]) C.projId = r.data[0].id; }
+    } catch (e) { r = { error: e }; }
+    C.busy = false;
+    if (r && r.error) { C.dirty = true; status("Not saved yet. Retrying", true); } else status("Saved to your account");
+  }
+  function tick() {
+    var s = songNow();
+    if (s && s !== C.last) { C.last = s; C.dirty = true; lsSet("loopwright-song", JSON.stringify({ uid: C.uid, t: Date.now(), song: JSON.parse(s) })); }
+    if (C.dirty) pushSong();
+  }
+  async function pullSong() {
+    var local = null; try { local = JSON.parse(lsGet("loopwright-song") || "null"); } catch (e) {}
+    if (local && local.uid !== C.uid) local = null;
+    var r = await C.sb.from("projects").select("id,arrangement,updated_at").eq("owner_id", C.uid).order("updated_at", { ascending: false }).limit(1);
+    var row = r.data && r.data[0]; if (row) C.projId = row.id;
+    var dbT = row ? Date.parse(row.updated_at) : 0, lT = (local && local.t) || 0, pick = null;
+    if (row && row.arrangement && Array.isArray(row.arrangement.tracks) && dbT >= lT) pick = row.arrangement;
+    else if (local && local.song) pick = local.song;
+    if (pick) {
+      var res = await window.__lw.song.set(pick);
+      if (res && res.dropped) status(res.dropped + (res.dropped === 1 ? " track" : " tracks") + " used a sound that couldn't be loaded", true);
+      else status(res && res.ok ? "Your saved song is back" : "Couldn't open your saved song", !(res && res.ok));
+    }
+    C.last = songNow();
+    if ((pick && lT > dbT) || !row) { C.dirty = true; pushSong(); }
+    else if (!pick) status("Saved to your account");
+  }
+  async function cloudStart() {
+    if (C.started || !window.__lw || !window.__lw.song) return;
+    var s = await window.lwSession(); if (!s || C.started) return;
+    C.started = true; C.sb = sbClient(); C.uid = s.user.id;
+    try {
+      if (await pullPrefs()) {
+        var once = null; try { once = sessionStorage.getItem("lw-prefs-applied"); } catch (e) {}
+        if (!once) { try { sessionStorage.setItem("lw-prefs-applied", "1"); } catch (e) {} location.reload(); return; }
+      }
+    } catch (e) {}
+    try { await pullSong(); } catch (e) { C.last = songNow(); }
+    setInterval(tick, 3000);
+    document.addEventListener("visibilitychange", function () { if (document.hidden) tick(); });
+  }
+  window.LWCloud = { start: cloudStart, saveNow: tick };
+  window.addEventListener("lw-ready", function () { cloudStart(); });
   window.claude = { use: async function (name) {
-    if (name === "sample") return sample;
+    if (name === "sample") return window.LW_DEMO ? null : sample;
     if (name !== "downloads") return null;
     return { save: async function (o) {
       var url = URL.createObjectURL(o.data), a = document.createElement("a");
@@ -46,6 +131,14 @@ window.LW_LIVE = true;
 })();
 </script>
 </head><body>
+<div id="lwgate" role="dialog" aria-modal="true" aria-labelledby="lwgateh" style="position:fixed;inset:0;z-index:9999;background:#07090c;color:#e9edf2;display:grid;place-items:center;padding:24px;font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif">
+<div style="max-width:400px;text-align:center"><img src="/assets/icon.svg" alt="" width="48" height="48" style="margin-bottom:14px">
+<h1 id="lwgateh" style="font:600 1.5rem/1.25 'Space Grotesk',Inter,sans-serif;margin:0 0 10px">Sign in to try the studio</h1>
+<p id="lwgatep" style="color:#8e98a5;margin:0 0 22px;line-height:1.5">Checking your account…</p>
+<div id="lwgateb" hidden style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+<a href="/signin/?next=/studio/" style="background:#3fd0bf;color:#03201c;font-weight:600;padding:12px 20px;border-radius:10px;text-decoration:none;min-width:140px">Sign in</a>
+<a href="/signin/?mode=signup&amp;next=/studio/" style="border:1px solid #2a323d;color:#e9edf2;padding:12px 20px;border-radius:10px;text-decoration:none;min-width:140px">Create an account</a></div>
+<p style="margin:22px 0 0"><a href="/" style="color:#8e98a5;font-size:.85rem">Back to the Loopwright site</a></p></div></div>
 
 <title>Loopwright</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -561,7 +654,7 @@ select.sel{padding:4px 6px;border:1px solid var(--line-2);border-radius:7px;back
       </div>
       <span id="askState" aria-live="polite"></span>
       <div class="pop aipop" id="aiPop" hidden>
-        <div class="aipop-head"><span class="label">AI producer</span><span class="small muted" id="engineNote">Only sound names and lengths are sent to Claude, never the audio.</span><span class="sp"></span><button class="ibtn" id="aiPopClose" type="button" aria-label="Close"><svg class="ico" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+        <div class="aipop-head"><span class="label">Word matcher</span><span class="small muted" id="engineNote">Only sound names and lengths are sent to Claude, never the audio.</span><span class="sp"></span><button class="ibtn" id="aiPopClose" type="button" aria-label="Close"><svg class="ico" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
         <div class="result" id="result" hidden></div>
         <div><span class="label">Try</span><div class="chips" id="chips" style="margin-top:6px"></div></div>
       </div>
@@ -576,7 +669,7 @@ select.sel{padding:4px 6px;border:1px solid var(--line-2);border-radius:7px;back
       <button class="ibtn" id="settingsBtn" type="button" aria-label="Settings" title="Settings (Shift+,)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg></button>
     </div>
   <div class="hostbar" style="display:flex;align-items:center;gap:10px;margin-left:auto;font-size:.78rem;color:var(--fg-2);white-space:nowrap">
-<span class="hostnote" id="lwcred">Browser studio</span><a href="/signin/?next=/studio/" id="lwsign" style="color:var(--fg-1);text-decoration:none">Sign in</a><a href="/download/" class="hostnote" style="color:var(--accent);text-decoration:none;font-weight:600">Get the Mac app</a></div>
+<span class="hostnote" id="lwsave"></span><span class="hostnote" title="The AI producer is in the Mac app">Browser demo</span><a href="/signin/?next=/studio/" id="lwsign" style="color:var(--fg-1);text-decoration:none">Sign in</a><a href="/download/" class="hostnote" style="color:var(--accent);text-decoration:none;font-weight:600">Get the Mac app</a></div>
 </header>
 
   <main class="ws" id="workspace">
@@ -729,7 +822,7 @@ select.sel{padding:4px 6px;border:1px solid var(--line-2);border-radius:7px;back
       <li>Panels pop out, float, resize and dock again, and the layout is remembered in this browser.</li>
       <li>Meters, lights and the playhead follow the audio as it plays.</li>
       <li>Record turns your keyboard playing into a pattern, and a mic take into a new sound and track, lined up with bar 1.</li>
-      <li>"Arrange" asks Claude for a pattern built only from your listed sounds when this view allows it. Otherwise a keyword matcher does it.</li>
+      <li>"Arrange" uses a free word matcher in the browser demo. The AI producer in the Mac app writes the full arrangement from your sounds.</li>
       <li>AI producer settings shape every run: personality, creativity, work mode, explained changes, takes, reference vibe, memory, Keep my sound, protected tracks, built-in sound rules, lyric helper, snapshots with undo, a monthly budget, and a view of what the AI is sent.</li>
       <li>Play live turns any sound, yours included, into a playable instrument from the on-screen keys, your computer keyboard, or a MIDI keyboard where the browser allows it.</li>
       <li>Export renders the song offline to a 16- or 24-bit WAV.</li>
@@ -1234,7 +1327,7 @@ async function libAdd(it,hit,hitName){ctx.resume();const name=it.name+(hitName?"
   const id=name.toLowerCase().replace(/[^a-z0-9]+/g,"-"),had=soundById(id);if(had){addTrackFromSound(had);return;}
   toast(`Loading ${name}…`);
   try{const kit=it.kind==="kit",buf=libTrim(await LIB.render(it.id,kit?{hit:hit??0,seconds:3}:{note:libNote(it),seconds:3.2}));
-    const s=addSound(name,"free",buf,kit?(it.category==="FX"?"":"drums"):libGroup(it));renderSounds();addTrackFromSound(s);}
+    const s=addSound(name,"free",buf,kit?(it.category==="FX"?"":"drums"):libGroup(it));s.lib={id:it.id,kit,hit:hit??0,cat:it.category,lo:it.key_low,hi:it.key_high};renderSounds();addTrackFromSound(s);}
   catch(e){toast("Couldn't load that sound. Check your connection and try again.");}}
 function libRow(it,cls,label,sub){const r=h("div","snd lib"+(cls?" "+cls:""));r.setAttribute("role","listitem");
   r.innerHTML=`<span class="dot" style="background:${it.pack_id==="originals"?"var(--accent)":"var(--fg-3)"}"></span><span class="meta" style="display:block"><span class="name"></span>${sub!=null?'<span class="small muted sub"></span>':""}</span><span class="acts"><button type="button" data-a="play" title="Hear">${ICON.play}</button><button type="button" data-a="add" title="Add track">${ICON.plus}</button></span>`;
@@ -1651,7 +1744,7 @@ Reply with JSON only, no prose and no code fence:
 }
 let sampleFn=null,ctl=null;
 (async()=>{try{sampleFn=await window.claude?.use?.("sample");}catch(e){sampleFn=null;}
-  $("engineNote").textContent=sampleFn?"Claude arranges it. Only sound names and lengths are sent, never the audio.":"The AI producer is not switched on here yet. A keyword matcher stands in: name a style (lo-fi, trap, house, ambient), a tempo, or words like dark, dreamy, chop or reverse.";})();
+  $("engineNote").textContent=sampleFn?"Claude arranges it. Only sound names and lengths are sent, never the audio.":"This is the browser demo, so a free word matcher arranges it. Name a style (lo-fi, trap, house, ambient), a tempo, or words like dark, dreamy, chop or reverse. The AI producer is in the Mac app.";})();
 function applyPlan(p){
   if(!p||!Array.isArray(p.tracks))throw new Error("no tracks");
   const tracks=[];for(const pt of p.tracks.slice(0,10)){const snd=soundById(pt.sound);if(!snd)continue;
@@ -1794,7 +1887,7 @@ function showSettings(){$("setKey").value=String(settings.key);$("setScale").val
   $("setLimiter").value=settings.limiter;$("setMetro").checked=settings.metro;$("setCountIn").checked=settings.countIn;$("setBars").value=String(settings.exportBars);$("setBits").value=String(settings.bits);$("setRate").value=String(settings.rate);
   $("metroBtn").classList.toggle("on",!!settings.metro);$("metroBtn").setAttribute("aria-pressed",!!settings.metro);
   $("setMode").value=settings.mode;$("setCap").value=settings.cap;$("setTheme").value=settings.theme;
-  $("setModeLbl").textContent=MODES[settings.mode]+(MODE_MAX[settings.mode]>settings.cap?". Over your cap, so a run asks first.":(window.LW_LIVE?". Charged from your credits.":". Free in this demo."));
+  $("setModeLbl").textContent=MODES[settings.mode]+(MODE_MAX[settings.mode]>settings.cap?". Over your cap, so a run asks first.":(window.LW_LIVE?". Used by the AI producer in the Mac app.":". Free in this demo."));
   $("exportState").textContent=`Renders ${settings.exportBars} bars offline as a ${settings.bits}-bit, ${settings.rate===48000?"48":"44.1"} kHz WAV, packed in a .zip.`;
   $("setAudio").textContent=`${(SR/1000).toFixed(1)} kHz`+(ctx.baseLatency?`, ${Math.round(ctx.baseLatency*1000)} ms`:"");}
 function changed(){saveSettings();live.applyMaster();applyTheme();showSettings();}
@@ -1855,7 +1948,7 @@ function restore(s){for(const t of state.tracks)live.drop(t.id);
   state.tracks=s.tracks.map(o=>Object.assign(newTrack(o.soundId,{steps:o.steps.slice(),bars:o.bars.slice(),fx:o.fx,chain:o.chain,byp:o.byp,color:o.color}),{id:o.id,seed:o.seed,mute:o.mute,solo:!!o.solo,locked:o.locked,raw:o.raw}));
   state.bpm=s.bpm;state.swing=s.swing;$("bpm").value=state.bpm;$("swing").value=state.swing;live.setTempo(state.bpm);renderTracks();updUndo();}
 function takeSnap(){if(ai.snapshots){snaps.push(snapOf());if(snaps.length>20)snaps.shift();}updUndo();}
-function updUndo(){const b=$("aiUndo");if(b){b.hidden=!snaps.length;b.textContent=snaps.length>1?`Undo AI change (${snaps.length})`:"Undo AI change";}}
+function updUndo(){const b=$("aiUndo");if(b){b.hidden=!snaps.length;b.textContent=snaps.length>1?`Undo (${snaps.length})`:"Undo";}}
 
 /* the rules on the user's own sound, built-in sounds and protected tracks */
 const isOwn=snd=>snd&&snd.origin!=="free";
@@ -1937,12 +2030,12 @@ function renderOutcome(p,src,mode,notes,changes){
   const tk=takes.length>1?`<div class="ai-takes">${takes.map((_,i)=>`<button type="button" class="btn tiny${i===activeTake?" primary":""}" data-take="${i}">Take ${String.fromCharCode(65+i)}</button>`).join("")}</div>`:"";
   const ex=ai.explain||mode==="suggest"?`<ul class="ai-changes">${changes.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>`:"";
   const nt=notes.length?`<div class="small muted">Your rules: ${esc(notes.join("; "))}.</div>`:"";
-  const lyr=wantsLyrics(lastText)&&!lyricBox(p)?`<div class="small muted">${src==="Claude"?"Claude didn't send lyrics this time.":"Lyric ideas need Claude, which isn't available in this view."}</div>`:lyricBox(p);
+  const lyr=wantsLyrics(lastText)&&!lyricBox(p)?`<div class="small muted">${src==="Claude"?"Claude didn't send lyrics this time.":"Lyric ideas come with the AI producer in the Mac app."}</div>`:lyricBox(p);
   let act="";
   if(mode==="suggest")act=`<div class="ask-row"><span class="small muted">Suggest only: nothing changed yet.</span><button type="button" class="btn primary tiny" data-ai="use">Use this</button><button type="button" class="btn tiny ghost" data-ai="discard">Discard</button></div>`;
   else if(mode==="ask")act=`<div class="ask-row"><span class="small muted">Previewing. Keep it?</span><button type="button" class="btn primary tiny" data-ai="keep">Keep</button><button type="button" class="btn tiny ghost" data-ai="undo">Undo</button></div>`;
   const same=changes.length===1&&changes[0]==="No changes"?`<div class="small muted">That matches the song that's already loaded, so nothing changed. Try another style (house, trap, ambient, drill) or a detail like "faster", "darker" or "reverse my vocal".</div>`:"";
-  const noAi=src==="Keyword matcher"?`<div class="small muted">The AI producer isn't switched on in this version yet, so a simple keyword matcher made this from the words you typed.</div>`:"";
+  const noAi=src==="Keyword matcher"?`<div class="small muted">This is the browser demo, so a free word matcher made this from your words. The AI producer, which writes a full arrangement from your sounds, is in the Mac app. <a href="/download/" style="color:var(--accent)">Get the Mac app</a></div>`:"";
   showAi(`<div>${esc(src)}: ${esc(p.summary||"Arranged.")}</div>${noAi}${same}${tk}${ex}${nt}${lyr}${act}`,"ok");
 }
 let lastText="",lastSrc="";
@@ -2053,18 +2146,36 @@ applyLayout();
 renderSounds();fillLiveSelect();
 try{const k=keywordPlan($("prompt").value);applyPlan(k);$("aiPop").hidden=true;showResult("Loaded an example built from the prompt above: "+k.summary+" Press Play.");}catch(e){renderTracks();}
 $("aiPop").hidden=true;requestAnimationFrame(meterLoop);
-window.__lw={ui:{efx,addPedal,removePedal,deriveChain,PEDALS,PDEF,get layout(){return layout},applyLayout,showPanel,popOut,dockPanel,usePreset,select,knob,handleShortcut,addTrackFromSound,moveTrack},state,sounds,keywordPlan,buildPrompt,applyPlan,renderMix,encodeWav,zip,crc32,settings,km:{captureKey,listen:i=>{listenIdx=i;}},rec:{rec,startRecKeys,stopRecKeys,recNote,startRecMic,stop}};
+/* the song as plain data, so the page around the studio can keep it in the user's account */
+function songGet(){const snap=snapOf(),libs={};
+  for(const t of snap.tracks){const snd=soundById(t.soundId);if(!snd||libs[snd.id])continue;
+    if(snd.lib)libs[snd.id]=Object.assign({name:snd.name,group:snd.group},snd.lib);else if(snd.cloudId)libs[snd.id]={own:true,cloudId:snd.cloudId,name:snd.name,group:snd.group};}
+  return Object.assign({v:1,libs},snap);}
+async function songSet(sg){if(!sg||!Array.isArray(sg.tracks))return{ok:false,dropped:0};const libs=sg.libs||{};
+  for(const t of sg.tracks){if(soundById(t.soundId))continue;const L=libs[t.soundId];if(!L)continue;
+    try{let buf=null;
+      if(L.own&&typeof window.lwLoadOwnSound==="function")buf=await window.lwLoadOwnSound(L.cloudId,ctx);
+      else if(!L.own&&LIB)buf=libTrim(await LIB.render(L.id,L.kit?{hit:L.hit??0,seconds:3}:{note:libNote({category:L.cat,key_low:L.lo,key_high:L.hi}),seconds:3.2}));
+      if(buf&&!soundById(t.soundId)){const snd=addSound(L.name,L.own?"yours":"free",buf,L.group);if(L.own){snd.id=t.soundId;snd.cloudId=L.cloudId;}else snd.lib={id:L.id,kit:L.kit,hit:L.hit,cat:L.cat,lo:L.lo,hi:L.hi};}}catch(e){}}
+  const keep=sg.tracks.filter(t=>soundById(t.soundId)&&Array.isArray(t.steps)&&Array.isArray(t.bars));
+  if(!keep.length&&sg.tracks.length)return{ok:false,dropped:sg.tracks.length};
+  restore({bpm:clamp(Math.round(Number(sg.bpm)||80),50,190),swing:clamp(Number(sg.swing)||0,0,.3),tracks:keep});
+  for(const t of keep){const n=parseInt(String(t.id).slice(1),10);if(n>tid)tid=n;}
+  renderSounds();return{ok:true,dropped:sg.tracks.length-keep.length};}
+window.__lw={ui:{efx,addPedal,removePedal,deriveChain,PEDALS,PDEF,get layout(){return layout},applyLayout,showPanel,popOut,dockPanel,usePreset,select,knob,handleShortcut,addTrackFromSound,moveTrack},state,sounds,keywordPlan,buildPrompt,applyPlan,renderMix,encodeWav,zip,crc32,settings,km:{captureKey,listen:i=>{listenIdx=i;}},rec:{rec,startRecKeys,stopRecKeys,recNote,startRecMic,stop},song:{get:songGet,set:songSet}};
+window.dispatchEvent(new Event("lw-ready"));
 })();
 
 </script>
 
 <script>
-(function(){var sign=document.getElementById("lwsign"),cred=document.getElementById("lwcred");
-  async function paint(){var s=await window.lwSession();
-    if(s){sign.textContent="Account";sign.href="/account/";
-      try{var sb=window.__lwsb;var r=await sb.rpc("my_credit_balance");if(typeof r.data==="number"){cred.textContent=r.data+" credits";cred.classList.add("cr");}}catch(e){}}
-    else{sign.textContent="Sign in";sign.href="/signin/?next=/studio/";cred.textContent="Browser studio";cred.classList.remove("cr");}}
-  window.addEventListener("lw-credits",function(e){cred.textContent=e.detail+" credits";cred.classList.add("cr");});
-  paint();})();
+(function(){var sign=document.getElementById("lwsign");
+  function out(){var p=document.getElementById("lwgatep"),b=document.getElementById("lwgateb");
+    p.textContent="The studio is for Loopwright members. Making an account is free, and your songs and settings are saved to it.";b.hidden=false;b.style.display="flex";}
+  async function check(){var s=null;try{s=await window.lwSession();}catch(e){}
+    if(!s){out();sign.textContent="Sign in";sign.href="/signin/?next=/studio/";return;}
+    var g=document.getElementById("lwgate");if(g)g.remove();sign.textContent="Account";sign.href="/account/";
+    if(window.LWCloud)window.LWCloud.start();}
+  check();})();
 </script>
 </body></html>
