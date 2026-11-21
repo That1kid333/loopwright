@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Loopwright</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap">
+<script src="supabase.js"></script><script src="auth.js"></script>
+<style>
+:root{--bg:#0b0d10;--panel:#13161b;--panel-2:#1a1e25;--line:#272d36;--fg:#e9edf2;--fg-2:#8e98a5;--accent:#3fd0bf;--accent-fg:#03201c;--led:#ffb020;--led-dim:#3b2c0c;--warn:#ff7a59;color-scheme:dark}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{background:radial-gradient(1200px 600px at 50% -10%,#16202a 0%,var(--bg) 60%);color:var(--fg);font:15px/1.5 Inter,system-ui,sans-serif;display:grid;place-items:center;-webkit-app-region:drag}
+.box{width:min(400px,92vw);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:30px;box-shadow:0 30px 80px rgba(0,0,0,.5);-webkit-app-region:no-drag}
+.brand{display:flex;align-items:center;gap:10px;font:700 1.3rem "Space Grotesk",Inter,sans-serif;margin-bottom:6px}
+.logo{width:30px;height:30px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:5px}
+.logo i{border-radius:2px;background:var(--led-dim)}.logo i.on{background:var(--led);box-shadow:0 0 6px var(--led)}.logo i.t{background:var(--accent)}
+p{margin:0 0 20px;color:var(--fg-2)}
+form{display:flex;flex-direction:column;gap:12px}
+label{display:flex;flex-direction:column;gap:6px;font-size:.85rem;color:var(--fg-2);font-weight:500}
+input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:11px 12px}
+input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+button{font:600 .95rem Inter,sans-serif;border-radius:10px;padding:12px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);cursor:pointer;box-shadow:0 0 18px rgba(63,208,191,.3)}
+button[disabled]{opacity:.6}
+.msg{font-size:.88rem;padding:9px 11px;border-radius:9px;border:1px solid #5a3a30;color:#ffc2b0;background:var(--panel-2)}
+.links{display:flex;justify-content:space-between;margin-top:16px;font-size:.88rem}
+a{color:var(--accent);text-decoration:none}
+</style></head><body>
+<div class="box">
+<div class="brand"><span class="logo"><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i></span>Loopwright</div>
+<p>Sign in with your Loopwright account.</p>
+<form id="f">
+<label>Email<input id="email" type="email" autocomplete="email" required></label>
+<label>Password<input id="pw" type="password" autocomplete="current-password" required></label>
+<div id="msg" class="msg" hidden></div>
+<button id="go" type="submit">Sign in</button>
+</form>
+<div class="links"><a href="https://loopwright-studio.netlify.app/signin/?mode=signup" target="_blank">Create an account</a><a href="https://loopwright-studio.netlify.app/signin/" target="_blank">Forgot password?</a></div>
+</div>
+<script>
+LWA.user().then(function(u){ if(u) location.replace("studio.html"); });
+document.getElementById("f").onsubmit = async function(e){
+  e.preventDefault(); var b=document.getElementById("go"), m=document.getElementById("msg"); b.disabled=true; m.hidden=true;
+  var r = await LWA.sb.auth.signInWithPassword({ email: document.getElementById("email").value.trim(), password: document.getElementById("pw").value });
+  b.disabled=false;
+  if (r.error) { m.hidden=false; m.textContent = /fetch|network/i.test(r.error.message) ? "Can't reach Loopwright. Check your internet connection." : r.error.message; return; }
+  location.replace("studio.html");
+};
+</script>
+</body></html>

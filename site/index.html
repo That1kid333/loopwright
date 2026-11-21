@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Loopwright</title><meta name="description" content="Make songs from your own sounds. Describe the song in plain words and Loopwright arranges your samples, loops and vocals.">
+<meta name="theme-color" content="#0b0d10">
+<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/supabase.js"></script><script src="/assets/app.js"></script>
+</head><body>
+<header class="site"><div class="wrap">
+<a class="brand" href="/"><span class="logo"><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i></span>Loopwright</a>
+<nav class="main">
+<a href="/#how" class="hide-sm">How it works</a><a href="/pricing/" >Pricing</a><a href="/download/" >Download</a><a href="/studio/" class="hide-sm" >Try it</a>
+<span id="navAuth"></span>
+</nav></div></header>
+<main>
+
+<section class="hero"><div class="wrap hero-grid">
+<div>
+<span class="tag on">Desktop app · Mac first</span>
+<h1 style="margin-top:16px">Make songs from your own sounds.</h1>
+<p class="lead">Upload your samples, loops and vocals, then describe the song in plain words. Loopwright arranges <b style="color:var(--fg)">your</b> sounds into a track. No stock loops, no AI-made audio, and your recordings stay yours.</p>
+<div class="ctas"><a class="btn primary" href="/download/">Download for Mac</a><a class="btn" href="/studio/">Try it in your browser</a></div>
+<p class="muted small" style="margin-top:14px">Free to start with 200 credits. No card needed.</p>
+</div>
+<div class="rack" aria-label="Example arrangement">
+<div class="label" style="margin-bottom:8px">Arrange view · 92 BPM</div>
+<div class="row"><span class="name">kick</span><div class="steps16"><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div></div>
+<div class="row"><span class="name">hats</span><div class="steps16"><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i class="on"></i><i class="on"></i></div></div>
+<div class="row"><span class="name">bass</span><div class="steps16"><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div></div>
+<div class="row"><span class="name yours">my_vocal.wav</span><div class="steps16"><i></i><i class="y"></i><i></i><i></i><i></i><i class="y"></i><i></i><i></i><i></i><i class="y"></i><i></i><i></i><i></i><i class="y"></i><i></i><i></i></div></div>
+<div class="row"><span class="name yours">guitar_loop</span><div class="steps16"><i class="y"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="y"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+<div class="prompt-bar"><b>›</b> slow lo-fi beat, my vocal chopped on the offbeat</div>
+</div>
+</div></section>
+
+<section class="block" id="how"><div class="wrap">
+<h2>How it works</h2>
+<p class="muted">A plain-words prompt does the arranging. You keep full control of every step afterwards.</p>
+<div class="cards">
+<div class="card"><span class="num">01</span><h3>Bring your sounds</h3><p class="muted">Drop in WAVs, loops, one-shots and vocals. Built-in basic drums, bass and keys are made in code, so there are no stock samples to license.</p></div>
+<div class="card"><span class="num">02</span><h3>Describe the song</h3><p class="muted">"Dark trap at 140, my sample pitched down and reversed." Loopwright picks steps, effects and levels using only what's in your library.</p></div>
+<div class="card"><span class="num">03</span><h3>Shape it and export</h3><p class="muted">Edit the steps, play parts live on the on-screen keyboard, tweak effects, then export a WAV.</p></div>
+</div>
+</div></section>
+
+<section class="block"><div class="wrap">
+<h2>Built for your own material</h2>
+<div class="cards">
+<div class="card"><h3>Your sounds stay yours</h3><p class="muted">Only sound names and lengths are sent to the arranger, never the audio. Processing runs on your computer.</p></div>
+<div class="card"><h3>Free effects included</h3><p class="muted">Pitch, reverse, chop, stretch, filter, drive, delay and reverb come with the app at no extra cost.</p></div>
+<div class="card"><h3>Credits you can see</h3><p class="muted">1 credit is 1 cent. Before a big run you see the most it can cost, and failed runs are free.</p></div>
+<div class="card"><h3>Dark studio look</h3><p class="muted">Near-black panels, amber step lights and high contrast that stays easy on the eyes in long sessions.</p></div>
+</div>
+<div class="ctas" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:28px"><a class="btn primary" href="/signin/?mode=signup">Create a free account</a><a class="btn" href="/pricing/">See pricing</a></div>
+</div></section>
+</main>
+<footer class="site"><div class="wrap">
+<span class="muted small">Loopwright · make songs from your own sounds</span>
+<span class="small"><a href="/pricing/">Pricing</a> · <a href="/download/">Download</a> · <a href="/signin/">Sign in</a></span>
+</div></footer>
+
+</body></html>

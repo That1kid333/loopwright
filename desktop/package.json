@@ -1,0 +1,11 @@
+{
+  "name": "loopwright",
+  "productName": "Loopwright",
+  "version": "0.1.0",
+  "description": "Make songs from your own sounds.",
+  "main": "main.js",
+  "private": true,
+  "author": "Loopwright",
+  "license": "UNLICENSED",
+  "devDependencies": {}
+}

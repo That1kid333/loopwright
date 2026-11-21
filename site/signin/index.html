@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · Loopwright</title><meta name="description" content="Sign in or create your Loopwright account.">
+<meta name="theme-color" content="#0b0d10">
+<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/supabase.js"></script><script src="/assets/app.js"></script>
+</head><body>
+<header class="site"><div class="wrap">
+<a class="brand" href="/"><span class="logo"><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i></span>Loopwright</a>
+<nav class="main">
+<a href="/#how" class="hide-sm">How it works</a><a href="/pricing/" >Pricing</a><a href="/download/" >Download</a><a href="/studio/" class="hide-sm" >Try it</a>
+<span id="navAuth"></span>
+</nav></div></header>
+<main>
+
+<section style="padding:60px 0"><div class="wrap narrow">
+<div class="panel">
+<div class="tabs" role="tablist"><button id="tabIn" class="on" type="button">Sign in</button><button id="tabUp" type="button">Create account</button></div>
+<form id="authForm" class="stack" novalidate>
+<label class="f" id="nameRow" hidden>Name<input id="name" autocomplete="name" placeholder="What should we call you?"></label>
+<label class="f">Email<input id="email" type="email" autocomplete="email" required></label>
+<label class="f">Password<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
+<label class="check" id="termsRow" hidden><input type="checkbox" id="terms"> <span>I'll only upload sounds I own or have the rights to use.</span></label>
+<div id="msg" class="msg" hidden></div>
+<button class="btn primary" id="submit" type="submit">Sign in</button>
+<button class="btn sm" id="forgot" type="button" style="background:transparent;border:0;color:var(--fg-2)">Forgot your password?</button>
+</form>
+</div>
+<p class="muted small" style="text-align:center;margin-top:16px">Use the same account in the desktop app.</p>
+</div></section>
+</main>
+<footer class="site"><div class="wrap">
+<span class="muted small">Loopwright · make songs from your own sounds</span>
+<span class="small"><a href="/pricing/">Pricing</a> · <a href="/download/">Download</a> · <a href="/signin/">Sign in</a></span>
+</div></footer>
+<script>
+const {sb,$,show}=LW; let mode=new URLSearchParams(location.search).get("mode")==="signup"?"up":"in";
+function setMode(m){mode=m;$("tabIn").classList.toggle("on",m==="in");$("tabUp").classList.toggle("on",m==="up");
+ $("nameRow").hidden=m!=="up";$("termsRow").hidden=m!=="up";$("submit").textContent=m==="up"?"Create account":"Sign in";
+ $("password").autocomplete=m==="up"?"new-password":"current-password";$("forgot").hidden=m==="up";show($("msg"));}
+$("tabIn").onclick=()=>setMode("in");$("tabUp").onclick=()=>setMode("up");setMode(mode);
+LW.user().then(u=>{if(u)location.replace("/account/");});
+$("authForm").onsubmit=async e=>{e.preventDefault();const email=$("email").value.trim(),password=$("password").value;
+ if(!email||!password){show($("msg"),"Enter your email and password.","err");return;}
+ const b=$("submit");b.disabled=true;
+ try{
+  if(mode==="up"){
+   if(password.length<8){show($("msg"),"Use at least 8 characters for your password.","err");return;}
+   if(!$("terms").checked){show($("msg"),"Please confirm you'll only upload sounds you have the rights to.","err");return;}
+   const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+"/account/",data:{display_name:$("name").value.trim()||undefined}}});
+   if(error)throw error;
+   if(data.session){location.replace("/account/");}
+   else show($("msg"),"Check your email to confirm your account, then sign in.","ok");
+  }else{
+   const {error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;location.replace("/account/");
+  }
+ }catch(err){show($("msg"),err.message||"Something went wrong. Try again.","err");}
+ finally{b.disabled=false;}
+};
+$("forgot").onclick=async()=>{const email=$("email").value.trim();if(!email){show($("msg"),"Type your email first, then tap Forgot.","err");return;}
+ const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+"/account/?reset=1"});
+ show($("msg"),error?error.message:"If that email has an account, a reset link is on its way.",error?"err":"ok");};
+</script>
+</body></html>

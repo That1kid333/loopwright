@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Download · Loopwright</title><meta name="description" content="Download the Loopwright desktop app for Mac.">
+<meta name="theme-color" content="#0b0d10">
+<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/supabase.js"></script><script src="/assets/app.js"></script>
+</head><body>
+<header class="site"><div class="wrap">
+<a class="brand" href="/"><span class="logo"><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i></span>Loopwright</a>
+<nav class="main">
+<a href="/#how" class="hide-sm">How it works</a><a href="/pricing/" >Pricing</a><a href="/download/" class="active">Download</a><a href="/studio/" class="hide-sm" >Try it</a>
+<span id="navAuth"></span>
+</nav></div></header>
+<main>
+
+<section class="hero" style="padding-bottom:10px"><div class="wrap">
+<span class="label">Version 0.1.0</span>
+<h1 style="margin-top:8px">Download Loopwright</h1>
+<p class="lead">Install the desktop app, then sign in with your Loopwright account.</p>
+</div></section>
+<section style="padding-bottom:30px"><div class="wrap">
+<div class="dl">
+<div class="card"><span class="tag on">Recommended</span><h3>Mac with Apple chip</h3><p class="muted small">M1, M2, M3, M4 or newer. macOS 12 or later.</p><a class="btn primary" href="https://github.com/That1kid333/loopwright/releases/latest/download/Loopwright-mac-arm64.zip">Download for Apple chip</a><span class="muted small">115 MB · zip</span></div>
+<div class="card"><span class="tag">Older Macs</span><h3>Mac with Intel chip</h3><p class="muted small">Intel Macs, macOS 12 or later.</p><a class="btn" href="https://github.com/That1kid333/loopwright/releases/latest/download/Loopwright-mac-x64.zip">Download for Intel</a><span class="muted small">120 MB · zip</span></div>
+<div class="card"><span class="tag">Coming later</span><h3>Windows</h3><p class="muted small">The Windows version comes after the Mac one.</p><button class="btn" disabled>Not yet</button></div>
+</div>
+<p class="muted small" style="margin-top:14px">Not sure which Mac you have? Apple menu &gt; About This Mac. "Chip: Apple M…" means Apple chip.</p>
+
+<div class="panel" style="margin-top:28px"><h3>First time opening it</h3>
+<p class="muted" style="margin-top:6px">This early version isn't signed by Apple yet, so macOS asks you to confirm the first time.</p>
+<ol class="howto">
+<li>Open the zip in Downloads and drag <b style="color:var(--fg)">Loopwright</b> into Applications.</li>
+<li>In Applications, right-click (or Control-click) Loopwright and choose <b style="color:var(--fg)">Open</b>, then <b style="color:var(--fg)">Open</b> again.</li>
+<li>If macOS only offers Move to Trash, open System Settings &gt; Privacy &amp; Security, scroll down and click <b style="color:var(--fg)">Open Anyway</b>.</li>
+<li>If it says the app "is damaged", open Terminal, paste this and press Return, then open the app again:</li>
+</ol>
+<pre>xattr -cr /Applications/Loopwright.app</pre>
+</div>
+</div></section>
+</main>
+<footer class="site"><div class="wrap">
+<span class="muted small">Loopwright · make songs from your own sounds</span>
+<span class="small"><a href="/pricing/">Pricing</a> · <a href="/download/">Download</a> · <a href="/signin/">Sign in</a></span>
+</div></footer>
+
+</body></html>

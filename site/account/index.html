@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Account · Loopwright</title><meta name="description" content="Your Loopwright plan, credits and settings.">
+<meta name="theme-color" content="#0b0d10">
+<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/supabase.js"></script><script src="/assets/app.js"></script>
+</head><body>
+<header class="site"><div class="wrap">
+<a class="brand" href="/"><span class="logo"><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i><i></i><i class="t"></i><i></i><i class="on"></i></span>Loopwright</a>
+<nav class="main">
+<a href="/#how" class="hide-sm">How it works</a><a href="/pricing/" >Pricing</a><a href="/download/" >Download</a><a href="/studio/" class="hide-sm" >Try it</a>
+<span id="navAuth"></span>
+</nav></div></header>
+<main>
+
+<section style="padding:48px 0"><div class="wrap">
+<div id="loading" class="muted">Loading your account…</div>
+<div id="acct" hidden>
+<div style="display:flex;gap:16px;align-items:end;justify-content:space-between;flex-wrap:wrap;margin-bottom:24px">
+<div><span class="label">Account</span><h1 id="hello" style="font-size:2rem;margin-top:6px">Your account</h1><p class="who" id="who"></p></div>
+<div style="display:flex;gap:10px"><a class="btn primary" href="/download/">Download the app</a><button class="btn" id="signout" type="button">Sign out</button></div>
+</div>
+<div id="resetBox" class="panel" hidden style="margin-bottom:16px"><h3 style="margin-bottom:10px">Set a new password</h3>
+<form id="resetForm" class="stack"><input id="newpw" type="password" minlength="8" autocomplete="new-password" placeholder="New password (8+ characters)"><button class="btn primary" type="submit">Save password</button><div id="resetMsg" class="msg" hidden></div></form></div>
+<div class="grid2">
+<div class="card"><span class="label">Plan</span><div class="stat" id="plan" style="margin-top:6px">Free</div><p class="muted small" id="planNote">Paid plans open soon.</p><a class="btn sm" href="/pricing/" style="margin-top:12px">See plans</a></div>
+<div class="card"><span class="label">Credits</span><div class="stat led" id="credits" style="margin-top:6px">0</div><p class="muted small" id="creditNote">1 credit = 1 cent. Buying credits opens soon.</p></div>
+</div>
+<div class="panel" style="margin-top:16px"><h3 style="margin-bottom:14px">Settings</h3>
+<form id="settingsForm" class="stack">
+<div class="grid2">
+<label class="f">Display name<input id="sName" maxlength="60"></label>
+<label class="f">Default arranging mode<select id="sMode"><option value="quick">Quick</option><option value="standard">Standard</option><option value="pro">Pro</option><option value="studio">Studio</option></select></label>
+<label class="f">Most credits one prompt may use<input id="sCap" type="number" min="1" max="1000" step="1"></label>
+<label class="f">Theme<select id="sTheme"><option value="dark">Dark studio</option><option value="light">Light</option></select></label>
+</div>
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" type="submit">Save settings</button><span id="sMsg" class="muted small"></span></div>
+</form>
+<p class="muted small" style="margin-top:14px">Audio device, MIDI and plugin folders are set in the desktop app.</p>
+</div>
+</div>
+</div></section>
+</main>
+<footer class="site"><div class="wrap">
+<span class="muted small">Loopwright · make songs from your own sounds</span>
+<span class="small"><a href="/pricing/">Pricing</a> · <a href="/download/">Download</a> · <a href="/signin/">Sign in</a></span>
+</div></footer>
+<script>
+const {sb,$,show}=LW;
+(async()=>{
+ const u=await LW.user(); if(!u){location.replace("/signin/");return;}
+ $("loading").hidden=true;$("acct").hidden=false;$("who").textContent=u.email;
+ if(new URLSearchParams(location.search).get("reset")==="1")$("resetBox").hidden=false;
+ const [p,s,c,sub]=await Promise.all([
+  sb.from("profiles").select("display_name,plan").eq("id",u.id).maybeSingle(),
+  sb.from("user_settings").select("default_mode,credit_cap_per_prompt,theme").eq("user_id",u.id).maybeSingle(),
+  sb.from("credit_balance").select("balance").eq("user_id",u.id).maybeSingle(),
+  sb.from("subscriptions").select("plan,status,current_period_end").eq("user_id",u.id).maybeSingle()]);
+ const name=p.data&&p.data.display_name; if(name)$("hello").textContent="Hi, "+name; $("sName").value=name||"";
+ const plan=(sub.data&&sub.data.plan)||(p.data&&p.data.plan)||"free"; $("plan").textContent=plan[0].toUpperCase()+plan.slice(1);
+ if(sub.data&&sub.data.status&&sub.data.status!=="active")$("planNote").textContent="Status: "+sub.data.status;
+ const bal=(c.data&&c.data.balance)||0;$("credits").textContent=bal.toLocaleString();if(!bal)$("creditNote").textContent="Your 200 free credits are added when AI arranging opens. 1 credit = 1 cent.";
+ const st=s.data||{default_mode:"standard",credit_cap_per_prompt:100,theme:"dark"};
+ $("sMode").value=st.default_mode;$("sCap").value=st.credit_cap_per_prompt;$("sTheme").value=st.theme;
+ $("settingsForm").onsubmit=async e=>{e.preventDefault();$("sMsg").textContent="Saving…";
+  const cap=Math.max(1,Math.min(1000,parseInt($("sCap").value,10)||100));
+  const r1=await sb.from("user_settings").upsert({user_id:u.id,default_mode:$("sMode").value,credit_cap_per_prompt:cap,theme:$("sTheme").value});
+  const r2=await sb.from("profiles").update({display_name:$("sName").value.trim()||null}).eq("id",u.id);
+  const err=r1.error||r2.error; $("sMsg").textContent=err?("Couldn't save: "+err.message):"Saved.";
+  if(!err&&$("sName").value.trim())$("hello").textContent="Hi, "+$("sName").value.trim();};
+ $("resetForm").onsubmit=async e=>{e.preventDefault();const {error}=await sb.auth.updateUser({password:$("newpw").value});
+  show($("resetMsg"),error?error.message:"Password updated.",error?"err":"ok");};
+ $("signout").onclick=async()=>{await sb.auth.signOut();location.replace("/");};
+})();
+</script>
+</body></html>
