@@ -3,7 +3,7 @@ import sys, re
 src, out, mode = sys.argv[1], sys.argv[2], sys.argv[3]
 frag = open(src).read()
 frag = frag.replace('"Claude isn\'t available in this view, so a keyword matcher arranges it."',
-                    '"AI arranging opens soon. For now a built-in keyword matcher arranges your sounds."')
+                    '"The AI producer is not switched on here yet. A keyword matcher stands in: name a style (lo-fi, trap, house, ambient), a tempo, or words like dark, dreamy, chop or reverse."')
 frag = frag.replace("Open the page in claude.ai to export.", "Try exporting again.")
 frag = re.sub(r'<meta name="claude:[^>]*>\n?', '', frag)
 shim = """<script>
@@ -17,21 +17,28 @@ window.claude = { use: async function (name) {
   } };
 } };
 </script>"""
+# The studio fills the window, so the host links sit inside its own top bar, not in a bar above it.
+LOGO_OPEN = '<div class="logo">'
 if mode == "web":
-    bar = """<div style="position:sticky;top:0;z-index:50;display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 16px;margin:0 -16px 12px;background:#0b0d10ee;border-bottom:1px solid #272d36;font:14px Inter,system-ui,sans-serif;backdrop-filter:blur(8px)">
-<a href="/" style="color:#e9edf2;text-decoration:none;font-weight:700;font-family:'Space Grotesk',Inter,sans-serif">&larr; Loopwright</a>
-<span style="color:#8e98a5">Browser preview. <a href="/download/" style="color:#3fd0bf">Get the desktop app</a></span></div>"""
+    frag = frag.replace(LOGO_OPEN, '<a class="logo" href="/" title="Back to the Loopwright site" style="color:inherit;text-decoration:none">', 1)
+    frag = frag.replace('<b>Loopwright</b></div>', '<b>Loopwright</b></a>', 1)
+    bar = """<div class="hostbar" style="display:flex;align-items:center;gap:10px;margin-left:auto;font-size:.78rem;color:var(--fg-2);white-space:nowrap">
+<span class="hostnote">Browser studio</span><a href="/download/" style="color:var(--accent);text-decoration:none;font-weight:600">Get the Mac app</a></div>"""
     head_extra = '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">'
     tail = ""
 else:
-    bar = """<div id="lwbar" style="position:sticky;top:0;z-index:50;display:flex;gap:12px;align-items:center;justify-content:space-between;padding:8px 16px;margin:0 -16px 12px;background:#0b0d10ee;border-bottom:1px solid #272d36;font:13px Inter,system-ui,sans-serif">
-<b style="font-family:'Space Grotesk',Inter,sans-serif;color:#e9edf2">Loopwright</b>
-<span style="color:#8e98a5"><span id="lwwho"></span> · <a href="https://loopwright-studio.netlify.app/account/" target="_blank" style="color:#3fd0bf">Account</a> · <a href="#" id="lwout" style="color:#3fd0bf">Sign out</a></span></div>"""
+    bar = """<div class="hostbar" id="lwbar" style="display:flex;align-items:center;gap:8px;margin-left:auto;font-size:.78rem;color:var(--fg-2);white-space:nowrap">
+<span id="lwwho"></span><a href="https://loopwright-studio.netlify.app/account/" target="_blank" style="color:var(--accent);text-decoration:none">Account</a><a href="#" id="lwout" style="color:var(--accent);text-decoration:none">Sign out</a></div>"""
     head_extra = '<script src="supabase.js"></script><script src="auth.js"></script>'
     tail = """<script>
 LWA.requireUser().then(function(u){ if(u) document.getElementById("lwwho").textContent = u.email; });
 document.getElementById("lwout").onclick = function(e){ e.preventDefault(); LWA.signOut(); };
 </script>"""
+assert frag.count("</header>") == 1, "studio top bar not found"
+frag = frag.replace("</header>", bar + "\n</header>", 1)
+bar = ""
+hide = "<style>@media (max-width:760px){.hostbar .hostnote,#lwwho{display:none}}</style>"
+head_extra += hide
 page = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 {head_extra}

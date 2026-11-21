@@ -7,6 +7,9 @@ Make songs from your own sounds. This repo holds the website (Netlify) and the d
 - `desktop/` – Electron app: sign-in screen, then the studio. Uses the same Supabase project and publishable key as the site.
 - `tools/` – `build.py` writes the site pages; `wrap_demo.py` turns the demo (`tools/loopwright-demo.html`) into `site/studio/index.html` and `desktop/src/studio.html`.
 
+## One studio, three places
+`tools/loopwright-demo.html` is the only studio source. The claude.ai demo, the site's browser studio (`/studio/`) and the Mac app are all built from it, so they look and work the same. Change the studio there, then run the two `wrap_demo.py` lines below. The wrapper only adds the host links in the studio's top bar (back to the site, or account and sign out in the app) and a plain download for export.
+
 ## Rebuild
 ```
 python3 tools/build.py site
