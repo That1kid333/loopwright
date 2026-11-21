@@ -61,9 +61,9 @@ if mode == "web":
 (function(){var sign=document.getElementById("lwsign"),cred=document.getElementById("lwcred");
   async function paint(){var s=await window.lwSession();
     if(s){sign.textContent="Account";sign.href="/account/";
-      try{var sb=window.__lwsb;var r=await sb.rpc("my_credit_balance");if(typeof r.data==="number")cred.textContent=r.data+" credits";}catch(e){}}
-    else{sign.textContent="Sign in";sign.href="/signin/?next=/studio/";cred.textContent="Browser studio";}}
-  window.addEventListener("lw-credits",function(e){cred.textContent=e.detail+" credits";});
+      try{var sb=window.__lwsb;var r=await sb.rpc("my_credit_balance");if(typeof r.data==="number"){cred.textContent=r.data+" credits";cred.classList.add("cr");}}catch(e){}}
+    else{sign.textContent="Sign in";sign.href="/signin/?next=/studio/";cred.textContent="Browser studio";cred.classList.remove("cr");}}
+  window.addEventListener("lw-credits",function(e){cred.textContent=e.detail+" credits";cred.classList.add("cr");});
   paint();})();
 </script>"""
 else:
@@ -77,7 +77,7 @@ document.getElementById("lwout").onclick = function(e){ e.preventDefault(); LWA.
 assert frag.count("</header>") == 1, "studio top bar not found"
 frag = frag.replace("</header>", bar + "\n</header>", 1)
 bar = ""
-hide = "<style>@media (max-width:760px){.hostbar .hostnote,#lwwho{display:none}}</style>"
+hide = "<style>@media (max-width:760px){.hostbar .hostnote:not(.cr),#lwwho{display:none}}</style>"
 head_extra += hide
 page = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">

@@ -1,0 +1,7 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>Studio sizes</title>
+<style>body{margin:0;background:#222;display:flex;gap:16px;padding:12px;align-items:flex-start;font:12px sans-serif;color:#ccc;overflow:auto}
+figure{margin:0}iframe{border:1px solid #555;background:#000;display:block}</style></head><body>
+<script>
+const q=new URLSearchParams(location.search),src=q.get("src")||"/lab/studio/",sizes=(q.get("s")||"390x844,430x932").split(",");
+for(const sz of sizes){const [w,h]=sz.split("x");const f=document.createElement("figure");f.innerHTML=`<figcaption>${w} x ${h}</figcaption><iframe src="${src}" width="${w}" height="${h}"></iframe>`;document.body.appendChild(f);}
+</script></body></html>
