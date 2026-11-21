@@ -1,5 +1,13 @@
-const { app, BrowserWindow, shell, Menu, session, systemPreferences } = require("electron");
+const { app, BrowserWindow, shell, Menu, session, systemPreferences, protocol, net } = require("electron");
 const path = require("path");
+const { pathToFileURL } = require("url");
+
+// The app's pages are served from app://loopwright/ (a secure, standard origin) instead of file://,
+// so fetch, Cache Storage (the free sound library) and saved sign-in behave as they do on the website.
+const ORIGIN = "app://loopwright";
+const SRC = path.join(__dirname, "src");
+protocol.registerSchemesAsPrivileged([{ scheme: "app", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
+const isApp = (u) => typeof u === "string" && (u === ORIGIN || u.startsWith(ORIGIN + "/"));
 
 const SITE = "https://loopwright-studio.netlify.app";
 
@@ -10,7 +18,7 @@ function createWindow() {
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
-  win.loadFile(path.join(__dirname, "src", "signin.html"));
+  win.loadURL(ORIGIN + "/signin.html");
 
   // Links to the website (sign up, account, forgot password) open in the normal browser.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -18,7 +26,7 @@ function createWindow() {
     return { action: "deny" };
   });
   win.webContents.on("will-navigate", (e, url) => {
-    if (!url.startsWith("file://")) { e.preventDefault(); if (/^https:\/\//.test(url)) shell.openExternal(url); }
+    if (!isApp(url)) { e.preventDefault(); if (/^https:\/\//.test(url)) shell.openExternal(url); }
   });
   // Exports: ask where to save (default Downloads).
   win.webContents.session.on("will-download", (_e, item) => {
@@ -36,16 +44,23 @@ const template = [
 ];
 
 app.whenReady().then(() => {
-  // Recording: allow the studio (local files only) to use the mic / audio input and MIDI.
+  protocol.handle("app", (req) => {
+    const u = new URL(req.url);
+    if (u.host !== "loopwright") return new Response("Not found", { status: 404 });
+    const file = path.normalize(path.join(SRC, decodeURIComponent(u.pathname)));
+    if (file !== SRC && !file.startsWith(SRC + path.sep)) return new Response("Not found", { status: 404 });
+    return net.fetch(pathToFileURL(file).toString());
+  });
+  // Recording: allow the studio (the app's own pages only) to use the mic / audio input and MIDI.
   const allowed = new Set(["media", "midi", "midiSysex", "audioCapture"]);
   // Only local app pages ever load (outside links open in the browser), so the set below is the whole rule.
   session.defaultSession.setPermissionRequestHandler((wc, permission, cb, details) => {
-    if (!allowed.has(permission)) return cb(false);
+    if (!allowed.has(permission) || !isApp(details.requestingUrl || wc.getURL())) return cb(false);
     if (permission === "media" && process.platform === "darwin" && (details.mediaTypes || []).includes("audio")) {
       systemPreferences.askForMediaAccess("microphone").then(cb, () => cb(false));
     } else cb(true);
   });
-  session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission));
+  session.defaultSession.setPermissionCheckHandler((_wc, permission, origin) => allowed.has(permission) && isApp(origin));
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
