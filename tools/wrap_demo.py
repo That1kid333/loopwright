@@ -7,15 +7,47 @@ frag = frag.replace('"Claude isn\'t available in this view, so a keyword matcher
 frag = frag.replace("Open the page in claude.ai to export.", "Try exporting again.")
 frag = re.sub(r'<meta name="claude:[^>]*>\n?', '', frag)
 shim = """<script>
-/* Stand-alone shim: no Claude runtime here. Export saves through a normal download. */
-window.claude = { use: async function (name) {
-  if (name !== "downloads") return null;
-  return { save: async function (o) {
-    var url = URL.createObjectURL(o.data), a = document.createElement("a");
-    a.href = url; a.download = o.filename || "loopwright-track.zip"; document.body.appendChild(a); a.click();
-    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 4000);
+/* Stand-alone shim: export saves through a normal download, and the AI producer
+   calls Loopwright's own "arrange" server function with the signed-in user's session. */
+(function () {
+  var FN = "https://vvllgdrpnieorcpweurz.supabase.co/functions/v1/arrange";
+  var KEY = "sb_publishable_6iCD4SBhUOXgOoyyIT3qZA__dTbzZZF";
+  function sbClient() {
+    if (window.LWA && window.LWA.sb) return window.LWA.sb;
+    if (!window.__lwsb && window.supabase) window.__lwsb = window.supabase.createClient("https://vvllgdrpnieorcpweurz.supabase.co", KEY,
+      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+    return window.__lwsb || null;
+  }
+  window.lwSession = async function () { var sb = sbClient(); if (!sb) return null; var r = await sb.auth.getSession(); return r.data.session; };
+  function fail(code, msg) { var e = new Error(msg || code); e.code = code; return e; }
+  async function arrange(prompt, opts) {
+    opts = opts || {};
+    var s = await window.lwSession();
+    if (!s) throw fail("sign_in");
+    var mode = "standard"; try { if (typeof settings !== "undefined" && settings.mode) mode = settings.mode; } catch (e) {}
+    var res;
+    try {
+      res = await fetch(FN, { method: "POST", signal: opts.signal,
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + s.access_token, "apikey": KEY },
+        body: JSON.stringify({ prompt: typeof prompt === "string" ? prompt : JSON.stringify(prompt), mode: mode }) });
+    } catch (e) { if (e && e.name === "AbortError") throw fail("cancelled"); throw fail("network"); }
+    var data = {}; try { data = await res.json(); } catch (e) {}
+    if (!res.ok || !data.plan) throw fail(data.error || "server", data.message);
+    if (typeof data.balance === "number") window.dispatchEvent(new CustomEvent("lw-credits", { detail: data.balance }));
+    return data.plan;
+  }
+  var sample = function (input, opts) { return arrange(input, opts).then(function (p) { return { text: JSON.stringify(p), truncated: false }; }); };
+  sample.json = arrange;
+  window.claude = { use: async function (name) {
+    if (name === "sample") return sample;
+    if (name !== "downloads") return null;
+    return { save: async function (o) {
+      var url = URL.createObjectURL(o.data), a = document.createElement("a");
+      a.href = url; a.download = o.filename || "loopwright-track.zip"; document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 4000);
+    } };
   } };
-} };
+})();
 </script>"""
 # The studio fills the window, so the host links sit inside its own top bar, not in a bar above it.
 LOGO_OPEN = '<div class="logo">'
@@ -23,9 +55,17 @@ if mode == "web":
     frag = frag.replace(LOGO_OPEN, '<a class="logo" href="/" title="Back to the Loopwright site" style="color:inherit;text-decoration:none">', 1)
     frag = frag.replace('<b>Loopwright</b></div>', '<b>Loopwright</b></a>', 1)
     bar = """<div class="hostbar" style="display:flex;align-items:center;gap:10px;margin-left:auto;font-size:.78rem;color:var(--fg-2);white-space:nowrap">
-<span class="hostnote">Browser studio</span><a href="/download/" style="color:var(--accent);text-decoration:none;font-weight:600">Get the Mac app</a></div>"""
-    head_extra = '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">'
-    tail = ""
+<span class="hostnote" id="lwcred">Browser studio</span><a href="/signin/?next=/studio/" id="lwsign" style="color:var(--fg-1);text-decoration:none">Sign in</a><a href="/download/" class="hostnote" style="color:var(--accent);text-decoration:none;font-weight:600">Get the Mac app</a></div>"""
+    head_extra = '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml"><script src="/assets/supabase.js"></script>'
+    tail = """<script>
+(function(){var sign=document.getElementById("lwsign"),cred=document.getElementById("lwcred");
+  async function paint(){var s=await window.lwSession();
+    if(s){sign.textContent="Account";sign.href="/account/";
+      try{var sb=window.__lwsb;var r=await sb.rpc("my_credit_balance");if(typeof r.data==="number")cred.textContent=r.data+" credits";}catch(e){}}
+    else{sign.textContent="Sign in";sign.href="/signin/?next=/studio/";cred.textContent="Browser studio";}}
+  window.addEventListener("lw-credits",function(e){cred.textContent=e.detail+" credits";});
+  paint();})();
+</script>"""
 else:
     bar = """<div class="hostbar" id="lwbar" style="display:flex;align-items:center;gap:8px;margin-left:auto;font-size:.78rem;color:var(--fg-2);white-space:nowrap">
 <span id="lwwho"></span><a href="https://loopwright-studio.netlify.app/account/" target="_blank" style="color:var(--accent);text-decoration:none">Account</a><a href="#" id="lwout" style="color:var(--accent);text-decoration:none">Sign out</a></div>"""

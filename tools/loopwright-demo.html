@@ -1476,7 +1476,7 @@ function applyPlan(p){
   renderTracks();
 }
 function showResult(txt,kind){const r=$("result");r.hidden=false;r.dataset.kind=kind||"ok";r.textContent=txt;}
-const ERR={not_granted:"You declined Claude for this page",rate_limited:"Claude is busy for a moment",invalid_json:"Claude's answer wasn't usable",session_expired:"your session expired",sampling_disabled:"Claude is switched off here"};
+const ERR={not_granted:"You declined Claude for this page",rate_limited:"Claude is busy for a moment",invalid_json:"Claude's answer wasn't usable",session_expired:"your session expired",sampling_disabled:"Claude is switched off here",sign_in:"Sign in (top right) to use the AI producer",ai_not_connected:"The AI isn't connected yet",no_credits:"You're out of credits for this mode",daily_limit:"You've hit today's limit of AI prompts",busy:"Claude is busy for a moment",refused:"Claude wouldn't arrange that one",too_long:"This song is too big to send to the AI in one go",network:"The AI couldn't be reached (check your connection)",server:"Claude couldn't answer"};
 $("askBtn").onclick=async()=>{
   const text=$("prompt").value.trim();if(!text){$("prompt").focus();return;}
   ctx.resume();
