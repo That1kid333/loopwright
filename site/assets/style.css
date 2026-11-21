@@ -92,7 +92,7 @@ html.js [data-reveal].is-in,html.reveal-all [data-reveal]{opacity:1;transform:no
 .hero-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.02fr);gap:48px;align-items:center}
 .hero-grid > *,.split > *,.steps > *,.bento > *,.plans > *,.dl > *,.grid2 > *{min-width:0}
 @media (max-width:920px){.hero-grid{grid-template-columns:minmax(0,1fr);gap:40px}.hero{padding-top:48px}}
-.hero-bg{position:absolute;inset:-68px 0 0;z-index:-1;overflow:hidden;pointer-events:none}
+.hero-bg{position:absolute;inset:-68px 0 -140px;z-index:-1;overflow:hidden;pointer-events:none;mask-image:linear-gradient(#000 60%,transparent);-webkit-mask-image:linear-gradient(#000 60%,transparent)}
 .hero-bg .grid{position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:48px 48px;opacity:.35;
   mask-image:radial-gradient(ellipse 70% 60% at 60% 35%,#000 20%,transparent 75%);-webkit-mask-image:radial-gradient(ellipse 70% 60% at 60% 35%,#000 20%,transparent 75%);animation:gridpan 30s linear infinite}
 .hero-bg .orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5}
@@ -176,7 +176,7 @@ html.js [data-reveal].is-in,html.reveal-all [data-reveal]{opacity:1;transform:no
 .floaty.f2 i{background:var(--led);box-shadow:var(--glow)}
 @keyframes bob{0%,100%{translate:0 0}50%{translate:0 -10px}}
 @media (max-width:1060px){.floaty{display:none}}
-@media (max-width:520px){.seq .row{grid-template-columns:70px 1fr;gap:6px}.playhead{left:calc(76px + (100% - 76px) * var(--ph,0) / 16);width:calc((100% - 76px) / 16)}.steps16{gap:2px}.c-bottom{grid-template-columns:1fr}.mix{justify-content:space-between}.console{padding:12px}.seq .name{font-size:.68rem}.c-title{display:none}}
+@media (max-width:520px){.pad{aspect-ratio:2.2}.seq .row{grid-template-columns:70px 1fr;gap:6px}.playhead{left:calc(76px + (100% - 76px) * var(--ph,0) / 16);width:calc((100% - 76px) / 16)}.steps16{gap:2px}.c-bottom{grid-template-columns:1fr}.mix{justify-content:space-between}.console{padding:12px}.seq .name{font-size:.68rem}.c-title{display:none}}
 
 /* ---------- marquee ---------- */
 .marquee{position:relative;overflow:hidden;border-block:1px solid var(--line);padding:16px 0;background:var(--bg-2);
@@ -318,7 +318,7 @@ html.js .viz:not(.is-in) *,html.js .viz:not(.is-in){animation-play-state:paused}
 .plan .credits{font:500 .82rem var(--mono);color:var(--led)}
 .plan ul{margin:0;padding:0;list-style:none;color:var(--fg-2);display:grid;gap:8px;font-size:.94rem}
 .plan ul li{display:grid;grid-template-columns:18px 1fr;gap:8px}
-.plan ul li::before{content:"";width:14px;height:14px;margin-top:5px;border-radius:4px;background:color-mix(in srgb,var(--accent) 18%,transparent);border:1px solid color-mix(in srgb,var(--accent) 50%,transparent)}
+.plan ul li::before{content:"";width:10px;height:5px;margin-top:8px;margin-left:2px;border-left:2px solid var(--accent);border-bottom:2px solid var(--accent);transform:rotate(-45deg)}
 .plan .btn{margin-top:auto}
 table.simple{width:100%;border-collapse:collapse;margin-top:18px;font-size:.95rem}
 table.simple th,table.simple td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);transition:background .2s}
