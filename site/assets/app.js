@@ -15,7 +15,9 @@ window.LW = (function () {
       ? '<a class="btn sm" href="/account/">Account</a>'
       : '<a href="/signin/" class="hide-sm">Sign in</a> <a class="btn sm primary" href="/signin/?mode=signup">Get started</a>';
   }
-  sb.auth.onAuthStateChange(() => paintNav());
+  // Never call Supabase from inside this callback: supabase-js awaits it while holding
+  // its auth lock, so an await on getUser() here deadlocks sign-in and every page after it.
+  sb.auth.onAuthStateChange(() => { setTimeout(paintNav, 0); });
   document.addEventListener("DOMContentLoaded", paintNav);
   return { sb, $, show, user, site: location.origin };
 })();
