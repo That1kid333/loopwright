@@ -8,7 +8,7 @@ HEAD = """<!doctype html>
 <script>document.documentElement.classList.add("js");setTimeout(function(){{if(!document.documentElement.classList.contains("motion-ready"))document.documentElement.classList.add("reveal-all")}},2500)</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/style.css?v=4">
+<link rel="stylesheet" href="/assets/style.css?v=5">
 <script src="/assets/supabase.js"></script><script src="/assets/app.js"></script>
 <script src="/assets/motion.js?v=3" defer></script>
 </head><body>

@@ -140,7 +140,7 @@ html.js [data-reveal].is-in,html.reveal-all [data-reveal]{opacity:1;transform:no
 .steps16 i:nth-child(4n+1){background:#1e232b}
 .steps16 i.on{background:var(--led);border-color:var(--led);box-shadow:0 0 8px color-mix(in srgb,var(--led) 55%,transparent)}
 .steps16 i.y{background:var(--yours);border-color:var(--yours);box-shadow:0 0 8px color-mix(in srgb,var(--yours) 45%,transparent)}
-.steps16 i.now{border-color:color-mix(in srgb,var(--accent) 70%,var(--line))}
+
 .steps16 i.on.now,.steps16 i.y.now{transform:scale(1.18);filter:brightness(1.35);box-shadow:0 0 16px currentColor}
 .steps16 i.on.now{color:var(--led)}.steps16 i.y.now{color:var(--yours)}
 .steps16 i.pop{animation:pop .45s var(--spring)}
