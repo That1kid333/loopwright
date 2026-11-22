@@ -1,0 +1,982 @@
+[
+  {
+    "prompt": "warm dusty kick",
+    "recipe": {
+      "name": "Warm Dusty Kick",
+      "kind": "oneshot",
+      "tags": [
+        "kick",
+        "lo-fi",
+        "boom bap"
+      ],
+      "layers": [
+        {
+          "source": {
+            "type": "osc",
+            "wave": "sine"
+          },
+          "note": 31,
+          "pitch": {
+            "from": 26,
+            "to": 0,
+            "time": 0.09,
+            "curve": "exp"
+          },
+          "amp": {
+            "a": 0.001,
+            "h": 0.03,
+            "d": 0.45,
+            "s": 0,
+            "r": 0.1
+          },
+          "gain": 1
+        },
+        {
+          "source": {
+            "type": "osc",
+            "wave": "triangle"
+          },
+          "note": 43,
+          "pitch": {
+            "from": 24,
+            "to": 0,
+            "time": 0.03
+          },
+          "amp": {
+            "a": 0.001,
+            "d": 0.06
+          },
+          "gain": 0.35
+        },
+        {
+          "source": {
+            "type": "noise",
+            "color": "pink"
+          },
+          "filter": {
+            "type": "bandpass",
+            "freq": 3500,
+            "q": 0.8
+          },
+          "amp": {
+            "a": 0.0005,
+            "d": 0.012
+          },
+          "gain": 0.35
+        }
+      ],
+      "fx": [
+        {
+          "type": "drive",
+          "amount": 0.35
+        },
+        {
+          "type": "eq",
+          "low": 3,
+          "mid": -3,
+          "midFreq": 400,
+          "high": -6
+        },
+        {
+          "type": "crush",
+          "bits": 12,
+          "rate": 0.5
+        },
+        {
+          "type": "vinyl",
+          "crackle": 0.35,
+          "hiss": 0.2
+        },
+        {
+          "type": "compress",
+          "amount": 0.4
+        }
+      ],
+      "length": 0.8
+    }
+  },
+  {
+    "prompt": "tight trap snare with a crack",
+    "recipe": {
+      "name": "Tight Trap Snare",
+      "kind": "oneshot",
+      "tags": [
+        "snare",
+        "trap"
+      ],
+      "layers": [
+        {
+          "source": {
+            "type": "osc",
+            "wave": "triangle"
+          },
+          "note": 54,
+          "pitch": {
+            "from": 7,
+            "to": 0,
+            "time": 0.04
+          },
+          "amp": {
+            "a": 0.001,
+            "d": 0.09
+          },
+          "gain": 0.7
+        },
+        {
+          "source": {
+            "type": "noise",
+            "color": "white"
+          },
+          "filter": {
+            "type": "highpass",
+            "freq": 1800,
+            "q": 0.7
+          },
+          "amp": {
+            "a": 0.001,
+            "d": 0.26
+          },
+          "gain": 0.8
+        },
+        {
+          "source": {
+            "type": "noise",
+            "color": "white"
+          },
+          "filter": {
+            "type": "bandpass",
+            "freq": 5000,
+            "q": 1.5
+          },
+          "amp": {
+            "a": 0.0005,
+            "d": 0.02
+          },
+          "gain": 0.6
+        }
+      ],
+      "fx": [
+        {
+          "type": "compress",
+          "amount": 0.6
+        },
+        {
+          "type": "eq",
+          "low": -4,
+          "mid": 2,
+          "midFreq": 2500,
+          "high": 3
+        },
+        {
+          "type": "reverb",
+          "size": 0.2,
+          "decay": 0.4,
+          "mix": 0.12
+        }
+      ]
+    }
+  },
+  {
+    "prompt": "open hi-hat, a bit trashy, lo-fi",
+    "recipe": {
+      "name": "Trashy Lo-fi Open Hat",
+      "kind": "oneshot",
+      "tags": [
+        "hi-hat",
+        "lo-fi"
+      ],
+      "layers": [
+        {
+          "source": {
+            "type": "osc",
+            "wave": "square"
+          },
+          "freq": 80,
+          "filter": {
+            "type": "bandpass",
+            "freq": 10000,
+            "q": 0.8
+          },
+          "amp": {
+            "a": 0.001,
+            "d": 0.42
+          },
+          "gain": 0.35
+        },
+        {
+          "source": {
+            "type": "osc",
+            "wave": "square"
+          },
+          "freq": 120,
+          "filter": {
+            "type": "bandpass",
+            "freq": 10000,
+            "q": 0.8
+          },
+          "amp": {
+            "a": 0.001,
+            "d": 0.42
+          },
+          "gain": 0.35
+        },
+        {
+          "source": {
+            "type": "osc",
+            "wave": "square"
+          },
+          "freq": 166,
+          "filter": {
+            "type": "bandpass",
+            "freq": 10000,
+            "q": 0.8
+          },
+          "amp": {
+            "a": 0.001,
+            "d": 0.42
+          },
+          "gain": 0.35
+        },
+        {
+          "source": {
+            "type": "osc",
+            "wave": "square"
+          },
+          "freq": 217,
+          "filter": {
+            "type": "bandpass",
+            "freq": 10000,
+            "q": 0.8
+          },
+          "amp": {
+            "a": 0.001,
+            "d": 0.42
+          },
+          "gain": 0.35
+        },
+        {
+          "source": {
+            "type": "osc",
+            "wave": "square"
+          },
+          "freq": 272,
+          "filter": {
+            "type": "bandpass",
+            "freq": 10000,
+            "q": 0.8
+          },
+          "amp": {
+            "a": 0.001,
+            "d": 0.42
+          },
+          "gain": 0.35
+        },
+        {
+          "source": {
+            "type": "osc",
+            "wave": "square"
+          },
+          "freq": 328,
+          "filter": {
+            "type": "bandpass",
+            "freq": 10000,
+            "q": 0.8
+          },
+          "amp": {
+            "a": 0.001,
+            "d": 0.42
+          },
+          "gain": 0.35
+        },
+        {
+          "source": {
+            "type": "noise",
+            "color": "white"
+          },
+          "filter": {
+            "type": "highpass",
+            "freq": 7000,
+            "q": 0.7
+          },
+          "amp": {
+            "a": 0.001,
+            "d": 0.45
+          },
+          "gain": 0.5
+        }
+      ],
+      "fx": [
+        {
+          "type": "filter",
+          "mode": "highpass",
+          "freq": 6500,
+          "q": 0.7
+        },
+        {
+          "type": "crush",
+          "bits": 10,
+          "rate": 0.7
+        },
+        {
+          "type": "vinyl",
+          "crackle": 0.15,
+          "hiss": 0.1
+        }
+      ]
+    }
+  },
+  {
+    "prompt": "deep 808 that slides",
+    "recipe": {
+      "name": "Deep Sliding 808",
+      "kind": "note",
+      "root": 36,
+      "tags": [
+        "808",
+        "bass",
+        "trap"
+      ],
+      "layers": [
+        {
+          "source": {
+            "type": "osc",
+            "wave": "sine"
+          },
+          "semi": 0,
+          "pitch": {
+            "from": 5,
+            "to": 0,
+            "time": 0.12,
+            "curve": "exp"
+          },
+          "amp": {
+            "a": 0.002,
+            "h": 0.1,
+            "d": 1.8,
+            "s": 0,
+            "r": 0.2
+          },
+          "gain": 1
+        },
+        {
+          "source": {
+            "type": "osc",
+            "wave": "triangle"
+          },
+          "semi": 12,
+          "amp": {
+            "a": 0.002,
+            "d": 0.25
+          },
+          "gain": 0.25
+        }
+      ],
+      "fx": [
+        {
+          "type": "drive",
+          "amount": 0.25
+        },
+        {
+          "type": "filter",
+          "mode": "lowpass",
+          "freq": 2500
+        }
+      ],
+      "length": 2.2
+    }
+  },
+  {
+    "prompt": "shimmering airy pad",
+    "recipe": {
+      "name": "Shimmer Pad",
+      "kind": "note",
+      "root": 60,
+      "tags": [
+        "pad",
+        "ambient"
+      ],
+      "layers": [
+        {
+          "source": {
+            "type": "osc",
+            "wave": "sawtooth",
+            "unison": 6,
+            "spread": 28
+          },
+          "semi": 0,
+          "filter": {
+            "type": "lowpass",
+            "freq": 1800,
+            "q": 0.8,
+            "lfo": {
+              "rate": 0.25,
+              "depth": 700
+            }
+          },
+          "amp": {
+            "a": 1.2,
+            "d": 1,
+            "s": 0.85,
+            "r": 1.6
+          },
+          "gain": 0.5
+        },
+        {
+          "source": {
+            "type": "osc",
+            "wave": "sine"
+          },
+          "semi": 12,
+          "tremolo": {
+            "rate": 4.5,
+            "depth": 0.3
+          },
+          "amp": {
+            "a": 1.6,
+            "d": 1,
+            "s": 0.8,
+            "r": 1.6
+          },
+          "gain": 0.25
+        },
+        {
+          "source": {
+            "type": "fm",
+            "ratio": 3.5,
+            "index": 1.2,
+            "indexEnd": 0.3,
+            "indexTime": 2
+          },
+          "semi": 24,
+          "amp": {
+            "a": 2,
+            "d": 1,
+            "s": 0.6,
+            "r": 1.5
+          },
+          "gain": 0.12
+        },
+        {
+          "source": {
+            "type": "noise",
+            "color": "pink"
+          },
+          "filter": {
+            "type": "bandpass",
+            "freq": 6000,
+            "q": 1.2
+          },
+          "amp": {
+            "a": 1.5,
+            "d": 1,
+            "s": 0.6,
+            "r": 1.5
+          },
+          "gain": 0.08
+        }
+      ],
+      "fx": [
+        {
+          "type": "chorus",
+          "depth": 0.6,
+          "rate": 0.4,
+          "mix": 0.5
+        },
+        {
+          "type": "reverb",
+          "size": 0.9,
+          "decay": 4.5,
+          "mix": 0.5
+        },
+        {
+          "type": "width",
+          "amount": 0.4
+        }
+      ],
+      "length": 7
+    }
+  },
+  {
+    "prompt": "glassy bell pluck",
+    "recipe": {
+      "name": "Glass Bell Pluck",
+      "kind": "note",
+      "root": 72,
+      "tags": [
+        "bell",
+        "pluck",
+        "keys"
+      ],
+      "layers": [
+        {
+          "source": {
+            "type": "fm",
+            "ratio": 3.5,
+            "index": 4,
+            "indexEnd": 0.2,
+            "indexTime": 0.6
+          },
+          "semi": 0,
+          "amp": {
+            "a": 0.001,
+            "d": 1.6,
+            "s": 0,
+            "r": 0.4
+          },
+          "gain": 0.6
+        },
+        {
+          "source": {
+            "type": "osc",
+            "wave": "sine"
+          },
+          "semi": 0,
+          "amp": {
+            "a": 0.002,
+            "d": 2.2
+          },
+          "gain": 0.4
+        },
+        {
+          "source": {
+            "type": "osc",
+            "wave": "sine"
+          },
+          "semi": 19,
+          "amp": {
+            "a": 0.001,
+            "d": 0.4
+          },
+          "gain": 0.15
+        }
+      ],
+      "fx": [
+        {
+          "type": "delay",
+          "time": 0.32,
+          "feedback": 0.35,
+          "mix": 0.25
+        },
+        {
+          "type": "reverb",
+          "size": 0.6,
+          "decay": 2.5,
+          "mix": 0.3
+        }
+      ],
+      "length": 3.5
+    }
+  },
+  {
+    "prompt": "nylon guitar pluck",
+    "recipe": {
+      "name": "Nylon Pluck",
+      "kind": "note",
+      "root": 55,
+      "tags": [
+        "guitar",
+        "pluck",
+        "acoustic"
+      ],
+      "layers": [
+        {
+          "source": {
+            "type": "pluck",
+            "damping": 0.35,
+            "brightness": 0.45
+          },
+          "semi": 0,
+          "amp": {
+            "a": 0.001,
+            "h": 0.2,
+            "d": 2.5,
+            "s": 0,
+            "r": 0.3
+          },
+          "gain": 0.9
+        },
+        {
+          "source": {
+            "type": "noise",
+            "color": "pink"
+          },
+          "filter": {
+            "type": "bandpass",
+            "freq": 2500,
+            "q": 2
+          },
+          "amp": {
+            "a": 0.0005,
+            "d": 0.015
+          },
+          "gain": 0.15
+        }
+      ],
+      "fx": [
+        {
+          "type": "eq",
+          "low": 1,
+          "mid": -2,
+          "midFreq": 600,
+          "high": -3
+        },
+        {
+          "type": "reverb",
+          "size": 0.35,
+          "decay": 1.2,
+          "mix": 0.18
+        }
+      ],
+      "length": 2.8
+    }
+  },
+  {
+    "prompt": "retro laser zap",
+    "recipe": {
+      "name": "Retro Laser Zap",
+      "kind": "oneshot",
+      "tags": [
+        "fx",
+        "sci-fi",
+        "game"
+      ],
+      "layers": [
+        {
+          "source": {
+            "type": "osc",
+            "wave": "square"
+          },
+          "note": 96,
+          "pitch": {
+            "from": 0,
+            "to": -36,
+            "time": 0.35,
+            "curve": "lin"
+          },
+          "amp": {
+            "a": 0.001,
+            "d": 0.4
+          },
+          "gain": 0.5
+        },
+        {
+          "source": {
+            "type": "osc",
+            "wave": "sawtooth"
+          },
+          "note": 103,
+          "pitch": {
+            "from": 0,
+            "to": -40,
+            "time": 0.3,
+            "curve": "lin"
+          },
+          "amp": {
+            "a": 0.001,
+            "d": 0.3
+          },
+          "gain": 0.3
+        }
+      ],
+      "fx": [
+        {
+          "type": "crush",
+          "bits": 8,
+          "rate": 1
+        },
+        {
+          "type": "delay",
+          "time": 0.09,
+          "feedback": 0.4,
+          "mix": 0.3
+        }
+      ]
+    }
+  },
+  {
+    "prompt": "white noise riser for a drop, 4 seconds",
+    "recipe": {
+      "name": "Noise Riser 4s",
+      "kind": "oneshot",
+      "tags": [
+        "fx",
+        "riser",
+        "edm"
+      ],
+      "layers": [
+        {
+          "source": {
+            "type": "noise",
+            "color": "white"
+          },
+          "filter": {
+            "type": "bandpass",
+            "freq": 300,
+            "q": 2.5,
+            "env": {
+              "from": 300,
+              "to": 11000,
+              "time": 3.9
+            }
+          },
+          "amp": {
+            "a": 3.8,
+            "d": 0.05,
+            "s": 0,
+            "r": 0.05
+          },
+          "gain": 0.9
+        },
+        {
+          "source": {
+            "type": "osc",
+            "wave": "sawtooth",
+            "unison": 3,
+            "spread": 30
+          },
+          "note": 45,
+          "pitch": {
+            "from": 0,
+            "to": 24,
+            "time": 3.9,
+            "curve": "lin"
+          },
+          "filter": {
+            "type": "lowpass",
+            "freq": 900,
+            "env": {
+              "from": 400,
+              "to": 6000,
+              "time": 3.9
+            }
+          },
+          "amp": {
+            "a": 3.8,
+            "d": 0.05
+          },
+          "gain": 0.25
+        }
+      ],
+      "fx": [
+        {
+          "type": "reverb",
+          "size": 0.7,
+          "decay": 2,
+          "mix": 0.3
+        },
+        {
+          "type": "width",
+          "amount": 0.6
+        }
+      ],
+      "length": 4.3
+    }
+  },
+  {
+    "prompt": "cinematic boom impact",
+    "recipe": {
+      "name": "Cinematic Boom",
+      "kind": "oneshot",
+      "tags": [
+        "fx",
+        "impact",
+        "cinematic"
+      ],
+      "layers": [
+        {
+          "source": {
+            "type": "osc",
+            "wave": "sine"
+          },
+          "note": 26,
+          "pitch": {
+            "from": 19,
+            "to": -2,
+            "time": 0.6,
+            "curve": "exp"
+          },
+          "amp": {
+            "a": 0.002,
+            "h": 0.1,
+            "d": 2.5
+          },
+          "gain": 1
+        },
+        {
+          "source": {
+            "type": "noise",
+            "color": "brown"
+          },
+          "filter": {
+            "type": "lowpass",
+            "freq": 600,
+            "env": {
+              "from": 4000,
+              "to": 120,
+              "time": 1.5
+            }
+          },
+          "amp": {
+            "a": 0.003,
+            "d": 2
+          },
+          "gain": 0.8
+        },
+        {
+          "source": {
+            "type": "noise",
+            "color": "white"
+          },
+          "filter": {
+            "type": "highpass",
+            "freq": 3000
+          },
+          "amp": {
+            "a": 0.001,
+            "d": 0.08
+          },
+          "gain": 0.4
+        }
+      ],
+      "fx": [
+        {
+          "type": "drive",
+          "amount": 0.2
+        },
+        {
+          "type": "reverb",
+          "size": 1,
+          "decay": 5,
+          "mix": 0.45
+        },
+        {
+          "type": "compress",
+          "amount": 0.5
+        }
+      ],
+      "length": 5
+    }
+  },
+  {
+    "prompt": "8-bit coin pickup",
+    "recipe": {
+      "name": "8-bit Coin",
+      "kind": "oneshot",
+      "tags": [
+        "game",
+        "chiptune",
+        "fx"
+      ],
+      "layers": [
+        {
+          "source": {
+            "type": "osc",
+            "wave": "pulse",
+            "width": 0.5
+          },
+          "note": 83,
+          "amp": {
+            "a": 0.001,
+            "h": 0.07,
+            "d": 0.01
+          },
+          "gain": 0.5
+        },
+        {
+          "source": {
+            "type": "osc",
+            "wave": "pulse",
+            "width": 0.5
+          },
+          "note": 88,
+          "delay": 0.07,
+          "amp": {
+            "a": 0.001,
+            "h": 0.25,
+            "d": 0.2
+          },
+          "gain": 0.5
+        }
+      ],
+      "fx": [
+        {
+          "type": "crush",
+          "bits": 6,
+          "rate": 1
+        }
+      ],
+      "length": 0.6
+    }
+  },
+  {
+    "prompt": "gentle rain texture",
+    "recipe": {
+      "name": "Soft Rain Texture",
+      "kind": "oneshot",
+      "tags": [
+        "texture",
+        "ambient",
+        "foley"
+      ],
+      "layers": [
+        {
+          "source": {
+            "type": "noise",
+            "color": "pink"
+          },
+          "filter": {
+            "type": "lowpass",
+            "freq": 3500,
+            "q": 0.5
+          },
+          "amp": {
+            "a": 1,
+            "d": 1,
+            "s": 0.9,
+            "r": 1.5
+          },
+          "gain": 0.6
+        },
+        {
+          "source": {
+            "type": "noise",
+            "color": "white"
+          },
+          "filter": {
+            "type": "highpass",
+            "freq": 4000,
+            "lfo": {
+              "rate": 7,
+              "depth": 2500
+            }
+          },
+          "amp": {
+            "a": 1,
+            "d": 1,
+            "s": 0.8,
+            "r": 1.5
+          },
+          "gain": 0.2
+        }
+      ],
+      "fx": [
+        {
+          "type": "vinyl",
+          "crackle": 0.9,
+          "hiss": 0
+        },
+        {
+          "type": "reverb",
+          "size": 0.5,
+          "decay": 1.5,
+          "mix": 0.3
+        },
+        {
+          "type": "width",
+          "amount": 0.7
+        }
+      ],
+      "length": 8
+    }
+  }
+]

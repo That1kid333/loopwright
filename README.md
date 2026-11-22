@@ -27,3 +27,8 @@ On a Mac, ad-hoc sign afterwards: `codesign --force --deep -s - out/Loopwright-d
 Release builds are packed as .tar.xz (under GitHub's 100 MB file limit) into `site/downloads/`, which Netlify serves.
 
 The app is unsigned (no Apple Developer ID yet), so macOS asks for confirmation the first time.
+
+## Sound Maker (prototype, not wired into the studio yet)
+Type a description, get a new sound you own. Claude writes a synthesis recipe (`supabase/functions/make-sound`), and `site/assets/sound-maker.js` renders it to audio on the user's machine (Web Audio, offline). No samples, no model weights, nothing to license.
+Test renders: `npm i node-web-audio-api@1.0.4` somewhere, then
+`node tools/sound-maker/render_examples.mjs <path>/node_modules/node-web-audio-api/index.cjs out/` renders `tools/sound-maker/examples.json` to WAV and checks each one.
