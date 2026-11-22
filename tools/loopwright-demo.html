@@ -2132,7 +2132,7 @@ const PLACE=(()=>{
     else if(has(/\bquiet(ly)?\b|\bsubtle\b|\bsoft(ly)?\b|\bfaint\b|\bbackground\b|\bin the back\b|\blow in the mix\b|\bbarely\b|\bunder(neath)?\b/))w.level=-7;
     else if(has(/\b(a )?(bit|little|touch|tad) louder\b|\bslightly louder\b/))w.level=2;
     else if(has(/\bloud(er)?\b|\bup ?front\b|\bprominent\b|\bout front\b|\bin your face\b|\bpunchy\b|\bon top\b/))w.level=4;
-    if(has(/\b(on|to|in) the left\b|\bpanned left\b|\bleft side\b|\bhard left\b/))w.pan=-.5;else if(has(/\b(on|to|in) the right\b|\bpanned right\b|\bright side\b|\bhard right\b/))w.pan=.5;else if(has(/\b(in the )?(center|centre|middle)\b/))w.pan=0;
+    if(has(/\bhard left\b|\ball the way left\b/))w.pan=-.9;else if(has(/\bhard right\b|\ball the way right\b/))w.pan=.9;else if(has(/\b(on|to|in) the left\b|\bpan(ned|s)?( it| this)?( to the| to)? left\b|\bleft (side|speaker|ear)\b/))w.pan=-.5;else if(has(/\b(on|to|in) the right\b|\bpan(ned|s)?( it| this)?( to the| to)? right\b|\bright (side|speaker|ear)\b/))w.pan=.5;else if(has(/\b(in the )?(center|centre|middle)\b/))w.pan=0;
     if(has(/\bdry\b|\bno reverb\b|\btight\b/))w.dry=true;
     else{if(has(/\breverb\b|\bspac(ey|y|ious)\b|\bwet\b|\bdreamy\b|\bfar away\b|\bdistant\b|\bethereal\b/))w.reverb=.35;if(has(/\becho(es|ey)?\b|\bdelay\b/))w.delay=.3;}
     if(has(/\boctave (up|higher)\b|\bup an octave\b|\bhigher pitch\b|\bpitch(ed)? up\b/))w.octave=12;else if(has(/\boctave (down|lower)\b|\bdown an octave\b|\blower pitch\b|\bpitch(ed)? down\b|\bdeeper\b/))w.octave=-12;
@@ -2243,6 +2243,9 @@ const PLACE=(()=>{
     if(fx.filterType==="highpass")det.push("cut its lows below "+fx.cutoff+" Hz so the kick and bass stay clean");
     if(fx.start)det.push(`skipped ${Math.round(fx.start*1000)} ms of silence at its start so it lands on the beat`);
     const rv=Math.round(vol),who=refs.length?"the drums":"the mix";det.push(rv<0?`turned it down ${-rv} dB to sit under ${who}`:rv>0?`turned it up ${rv} dB to sit with ${who}`:`left its level as it is because it already sits with ${who}`);
+    if(wish.pan!=null)det.push(wish.pan===0?"kept it in the middle":`moved it ${Math.abs(wish.pan)>.8?"all the way ":""}to the ${wish.pan<0?"left":"right"}`);
+    if(wish.dry)det.push("kept it dry, with no echo");else{if(wish.reverb)det.push("added some reverb");if(wish.delay)det.push("added an echo");}
+    if(wish.reverse)det.push("played it backwards");
     if(ref&&wish.replace)det.push(`muted the ${ref.name} it replaces`);
     parts.push(det.length?"I "+det.join(", ").replace(/, ([^,]*)$/," and $1")+".":"");
     if(keyNote!=null&&!wish.noTune){const diff=wrap6(song.key-keyNote);if(diff)parts.push(`It stays in its own key (about ${NN[keyNote]}) because tuning a stretched loop would knock it off the beat. Say "match the key" to move the song to it.`);}
