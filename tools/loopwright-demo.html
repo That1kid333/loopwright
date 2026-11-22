@@ -149,6 +149,7 @@ select.sel{padding:4px 6px;border:1px solid var(--line-2);border-radius:7px;back
 .snd .dot{width:8px;height:8px;border-radius:50%}
 .snd .meta{min-width:0;display:flex;flex-direction:column}
 .snd .name{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.snd .meta{overflow:hidden}.snd .meta:has(.badge){white-space:nowrap}.snd .meta:has(.badge) .name{display:inline-block;max-width:calc(100% - 70px);vertical-align:bottom}
 .snd canvas{width:100%;height:16px;display:block;opacity:.85}
 .snd .acts{display:flex;gap:2px;opacity:.6}
 .snd:hover .acts,.snd:focus-within .acts{opacity:1}
