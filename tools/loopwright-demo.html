@@ -707,7 +707,7 @@ const SR = ctx.sampleRate;
 const $ = (id) => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const dbToGain = (db) => Math.pow(10, db / 20);
-const SET_DEF={key:0,scale:"minor",masterDb:0,limiter:"gentle",metro:false,countIn:false,exportBars:8,bits:16,rate:44100,mode:"standard",cap:100,theme:"dark"};
+const SET_DEF={key:0,scale:"minor",masterDb:0,limiter:"gentle",sound:"pro",metro:false,countIn:false,exportBars:8,bits:16,rate:44100,mode:"standard",cap:100,theme:"dark"};
 const settings=Object.assign({},SET_DEF);
 try{const saved=JSON.parse(localStorage.getItem("loopwright-settings")||"{}");for(const k in SET_DEF)if(k in saved&&typeof saved[k]===typeof SET_DEF[k])settings[k]=saved[k];}catch(e){}
 const KEY_DEF=[..."awsedftgyhujk","z","x"];
@@ -747,16 +747,97 @@ function synthVocal(){
   }
   return norm(d,.85);
 }
+/* ---------- built-in sounds, pro set: made in code once at start, no files to download ---------- */
+const PRO=(()=>{const TAU=2*Math.PI;
+  // zero-delay state variable filter (lowpass, bandpass, highpass from one pass)
+  function svf(){let a=0,b=0;return(x,f,q)=>{const g=Math.tan(Math.PI*Math.min(f,SR*.45)/SR),k=1/q,a1=1/(1+g*(g+k)),a2=g*a1,a3=g*a2,v3=x-b,v1=a1*a+a2*v3,v2=b+a2*a+a3*v3;a=2*v1-a;b=2*v2-b;return{lp:v2,bp:v1,hp:x-k*v1-v2};};}
+  const sat=(x,k)=>Math.tanh(x*k)/Math.tanh(k);
+  const fade=(d,ms=4)=>{const n=Math.min(d.length,Math.floor(SR*ms/1000));for(let i=0;i<n;i++)d[d.length-1-i]*=i/n;return d;};
+  const peakOf=(...ch)=>{let m=0;for(const d of ch)for(const v of d)m=Math.max(m,Math.abs(v));return m;};
+  function normSt(L,R,pk=.9){const m=peakOf(L,R);if(m>0)for(let i=0;i<L.length;i++){L[i]*=pk/m;R[i]*=pk/m;}return[L,R];}
+  function toSt(L,R){const b=ctx.createBuffer(2,L.length,SR);b.copyToChannel(L,0);b.copyToChannel(R,1);return b;}
+  // a few early reflections, different on each side, so short hits sound like a real room
+  function room(src,taps,g){const out=Float32Array.from(src);for(let k=0;k<taps.length;k++){const at=Math.floor(SR*taps[k]/1000),gg=g*Math.pow(.72,k)*(k%2?-1:1);for(let i=at;i<out.length;i++)out[i]+=src[i-at]*gg;}return out;}
+  function kick(){const d=mk(.62),r=mulberry(21);let ph=0,n1=0;
+    for(let i=0;i<d.length;i++){const t=i/SR,f=50+190*Math.exp(-t*42)+26*Math.exp(-t*8);ph+=TAU*f/SR;
+      const body=Math.sin(ph)*(t<.014?1:Math.exp(-(t-.014)*5.4)),n=r()*2-1;n1+=.3*(n-n1);
+      const click=(n-n1)*Math.exp(-t*700)*.55+Math.sin(TAU*1650*t)*Math.exp(-t*420)*.22;
+      d[i]=sat(body+click,1.9)*Math.min(1,t/.0006);}
+    return norm(fade(d,25),.95);}
+  function snare(){const n=Math.floor(SR*.45),d=new Float32Array(n),r=mulberry(22),f=svf(),h=svf();
+    for(let i=0;i<n;i++){const t=i/SR,fp=1+.3*Math.exp(-t*70);
+      const tone=(Math.sin(TAU*182*fp*t)*.75+Math.sin(TAU*334*fp*t)*.32)*Math.exp(-t*28);
+      const x=r()*2-1,bp=f(x,5200,.55).bp,hp=h(x,1100,.7).hp;
+      const nz=(bp*1.1+hp*.55)*(Math.exp(-t*14)*.75+Math.exp(-t*70)*.6);
+      d[i]=sat(tone+nz,1.5)*Math.min(1,t/.0005);}
+    const L=room(d,[7.1,13.3,19.7,27.2,34.9],.22),R=room(d,[8.9,15.8,23.1,29.6,38.3],.22);
+    return toSt(...normSt(fade(L,20),fade(R,20),.9));}
+  function metal(dec,len,seed,bright){const d=mk(len),r=mulberry(seed),f=svf(),h=svf(),fr=[205.3,304.4,369.6,522.7,540,800],ph=fr.map(()=>r());
+    for(let i=0;i<d.length;i++){const t=i/SR;let s=0;for(let k=0;k<6;k++){ph[k]=(ph[k]+fr[k]*1.62/SR)%1;s+=ph[k]<.5?1:-1;}
+      s=s/6+(r()*2-1)*.35;const y=h(f(s,bright,1.1).bp,6800,.7).hp;
+      d[i]=y*(Math.exp(-t/dec)*.85+Math.exp(-t*90)*.4)*Math.min(1,t/.0004);}
+    return norm(fade(d,8),.75);}
+  function clap(){const n=Math.floor(SR*.5),r=mulberry(24),mkSide=(off,seed)=>{const d=new Float32Array(n),f=svf(),g=svf(),rr=mulberry(seed);
+      for(let i=0;i<n;i++){const t=i/SR;let e=0;for(const o of off)if(t>=o)e+=Math.exp(-(t-o)*190);const last=off[off.length-1];if(t>last)e+=.62*Math.exp(-(t-last)*13);
+        const x=rr()*2-1;d[i]=(f(x,1150,1.5).bp*1.2+g(x,2500,1.1).bp*.6)*e;}
+      return room(d,[11,19,31],.18);};
+    const L=mkSide([0,.0087,.0181,.0262],25),R=mkSide([0,.0101,.0193,.0281],26);r();
+    return toSt(...normSt(fade(L,20),fade(R,20),.85));}
+  function e808(){const d=mk(1.9);let ph=0;
+    for(let i=0;i<d.length;i++){const t=i/SR,f=65.41*Math.pow(2,3*Math.exp(-t*26)/12);ph+=TAU*f/SR;
+      const env=Math.min(1,t/.002)*(t<.05?1:Math.exp(-(t-.05)*1.55));d[i]=sat(Math.sin(ph)*env*1.15,2.1)+Math.sin(ph*2)*.05*env;}
+    return norm(fade(d,40),.95);}
+  function bass(){const d=mk(1.2),f1=svf(),f2=svf();let p1=0,p2=.37,ps=0;
+    for(let i=0;i<d.length;i++){const t=i/SR,f=65.41;p1=(p1+f*1.0035/SR)%1;p2=(p2+f*.9965/SR)%1;ps+=TAU*f/SR;
+      const saw=(2*p1-1+2*p2-1)*.5,cut=110+1500*Math.exp(-t*9)+120*Math.exp(-t*1.2);
+      const y=f2(f1(saw,cut,.85).lp,cut,.6).lp,env=Math.min(1,t/.003)*(.35+.65*Math.exp(-t*3))*Math.exp(-t*.9);
+      d[i]=sat((y*1.1+Math.sin(ps)*.7)*env,1.6);}
+    return norm(fade(d,30),.92);}
+  function supersaw(notes,len,att,rel,cut,seed,voices){const L=mk(len),R=mk(len),r=mulberry(seed),fl=svf(),fr=svf(),hl=svf(),hr=svf(),dt=[-14,-8,-3,3,8,14].slice(0,voices||6);
+    const osc=[];for(const n of notes)dt.forEach((c,j)=>osc.push({inc:n*Math.pow(2,c/1200)/SR,ph:r(),pan:j%2?.82:.18}));
+    for(let i=0;i<L.length;i++){const t=i/SR;let l=0,rr=0;for(const o of osc){o.ph+=o.inc;if(o.ph>=1)o.ph-=1;const s=2*o.ph-1;l+=s*(1-o.pan);rr+=s*o.pan;}
+      const fc=cut*(1+.25*Math.sin(TAU*.13*t)),env=Math.min(1,t/att)*Math.min(1,Math.max(0,(len-t)/rel));
+      L[i]=hl(fl(l,fc,.6).lp,110,.7).hp*env;R[i]=hr(fr(rr,fc*1.04,.6).lp,110,.7).hp*env;}
+    return normSt(L,R,.8);}
+  // 1-5-8-9-12 voicing: fits a major or minor chord on any root in the key
+  const VOICE=[130.81,196,261.63,293.66,392];
+  function pad(){return toSt(...supersaw(VOICE,4.6,.55,.9,2100,31,6));}
+  function stab(){const[L,R]=supersaw(VOICE.slice(0,4),.75,.004,.12,900,32,4),f=svf(),g=svf();
+    for(let i=0;i<L.length;i++){const t=i/SR,e=Math.exp(-t*5.5),fc=700+4200*Math.exp(-t*16);L[i]=f(L[i],fc,.8).lp*e;R[i]=g(R[i],fc,.8).lp*e;}
+    return toSt(...normSt(L,R,.85));}
+  function keys(){const len=2.4,L=mk(len),R=mk(len),f=261.63;
+    for(let i=0;i<L.length;i++){const t=i/SR,I=.75+2.1*Math.exp(-t*8.5);
+      const s=Math.sin(TAU*f*t+I*Math.sin(TAU*f*t))+Math.sin(TAU*f*2*t)*.12*Math.exp(-t*3)+Math.sin(TAU*f*13.9*t)*.16*Math.exp(-t*48);
+      const env=Math.min(1,t/.0015)*Math.exp(-t*1.45),y=sat(s*env,1.25),tr=.2*Math.sin(TAU*4.4*t);
+      L[i]=y*(1+tr);R[i]=y*(1-tr);}
+    return toSt(...normSt(fade(L,30),fade(R,30),.82));}
+  function pluck(){const len=1.3,L=mk(len),R=mk(len),f=261.63,fl=svf(),fr=svf();let a=0,b=.5,c=.25,d2=.75;
+    for(let i=0;i<L.length;i++){const t=i/SR;a=(a+f*1.006/SR)%1;b=(b+f*.994/SR)%1;c=(c+f*1.002/SR)%1;d2=(d2+f*.998/SR)%1;
+      const fc=280+5200*Math.exp(-t*13),env=Math.min(1,t/.0015)*Math.exp(-t*4.2);
+      L[i]=fl((2*a-1)+(2*c-1)*.6,fc,.9).lp*env;R[i]=fr((2*b-1)+(2*d2-1)*.6,fc,.9).lp*env;}
+    return toSt(...normSt(fade(L,20),fade(R,20),.82));}
+  function rim(){const d=mk(.12),r=mulberry(27),f=svf();for(let i=0;i<d.length;i++){const t=i/SR;d[i]=(Math.sin(TAU*1710*t)*.7+Math.sin(TAU*480*t)*.35)*Math.exp(-t*95)+f(r()*2-1,3200,1.3).bp*Math.exp(-t*220)*.8;}return norm(fade(d,6),.8);}
+  function shaker(){const n=Math.floor(SR*.14),r=mulberry(28),side=()=>{const d=new Float32Array(n),f=svf();for(let i=0;i<n;i++){const t=i/SR;d[i]=f(r()*2-1,7400,1).bp*Math.min(1,t/.009)*Math.exp(-t*38);}return fade(d,8);};
+    return toSt(...normSt(side(),side(),.7));}
+  function crash(){const len=3,side=seed=>{const d=mk(len),r=mulberry(seed),h=svf(),fr=[205.3,304.4,369.6,522.7,540,800],ph=fr.map(()=>r());
+      for(let i=0;i<d.length;i++){const t=i/SR;let s=0;for(let k=0;k<6;k++){ph[k]=(ph[k]+fr[k]*2.7/SR)%1;s+=ph[k]<.5?1:-1;}
+        d[i]=h(s/6*.5+(r()*2-1)*.8,4200,.6).hp*Math.min(1,t/.001)*(Math.exp(-t*1.5)*.8+Math.exp(-t*12)*.5);}return fade(d,50);};
+    return toSt(...normSt(side(41),side(42),.8));}
+  function riser(){const len=3.4,side=seed=>{const d=mk(len),r=mulberry(seed),f=svf();
+      for(let i=0;i<d.length;i++){const t=i/SR,p=t/len;d[i]=f(r()*2-1,350*Math.pow(28,p),2.2).bp*p*p*Math.min(1,(len-t)/.02);}return d;};
+    return toSt(...normSt(side(43),side(44),.75));}
+  return{kick,snare,hat:()=>metal(.032,.12,23,9200),ohat:()=>metal(.2,.6,29,8400),clap,e808,bass,pad,stab,keys,pluck,rim,shaker,crash,riser};})();
 const sounds=[];let sid=0;
 function addSound(name,origin,buffer,group){const s={id:origin==="yours"?(()=>{let i;do i="u"+(++sid);while(sounds.some(x=>x.id===i));return i;})():name.toLowerCase().replace(/[^a-z0-9]+/g,"-"),name,origin,buffer,group:group||"",duration:buffer.duration};sounds.push(s);return s;}
-addSound("Kick","free",toBuf(synthKick()),"drums");
-addSound("Snare","free",toBuf(synthSnare()),"drums");
-addSound("Hat","free",toBuf(synthHat()),"drums");
-addSound("Clap","free",toBuf(synthClap()),"drums");
-addSound("Bass","free",toBuf(synthBass()),"bass");
-addSound("Pad","free",toBuf(synthPad()),"chords");
-addSound("Keys","free",toBuf(synthKeys()),"melody");
+const CLASSIC={kick:synthKick,snare:synthSnare,hat:synthHat,clap:synthClap,bass:synthBass,pad:synthPad,keys:synthKeys};
+const asBuf=x=>x&&x.getChannelData?x:toBuf(x);
+const builtBufs={pro:{},classic:{}};
+function builtBuf(key,classic){const m=builtBufs[classic&&CLASSIC[key]?"classic":"pro"];if(!m[key])m[key]=asBuf(classic&&CLASSIC[key]?CLASSIC[key]():PRO[key]());return m[key];}
+for(const[n,g,k]of[["Kick","drums","kick"],["Snare","drums","snare"],["Hat","drums","hat"],["Clap","drums","clap"],["Bass","bass","bass"],["Pad","chords","pad"],["Keys","melody","keys"]])addSound(n,"free",builtBuf(k,settings.sound==="classic"),g).bk=k;
 addSound("Example vocal","example",toBuf(synthVocal()),"vocal");
+for(const[n,g,k]of[["808","bass","e808"],["Open hat","drums","ohat"],["Rim","drums","rim"],["Shaker","drums","shaker"],["Crash","fx","crash"],["Riser","fx","riser"],["Stab","chords","stab"],["Pluck","melody","pluck"]])addSound(n,"free",builtBuf(k,false),g).bk=k;
+// Settings > Sound engine switches the first seven between the new sounds and the classic ones
+function swapBuiltins(){for(const s of sounds)if(s.bk&&CLASSIC[s.bk]){s.buffer=builtBuf(s.bk,settings.sound==="classic");s.duration=s.buffer.duration;}}
 const soundById=(id)=>sounds.find(s=>s.id===id);
 
 /* ---------- audio engine ---------- */
@@ -765,19 +846,105 @@ function reversed(buf){let r=revCache.get(buf);if(r)return r;r=ctx.createBuffer(
 function driveCurve(a){const n=1024,c=new Float32Array(n),k=1+a*30,nk=Math.tanh(k);for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=Math.tanh(k*x)/nk;}return c;}
 function buildIR(c){const len=Math.floor(c.sampleRate*2.6),b=c.createBuffer(2,len,c.sampleRate);for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch),r=mulberry(ch+11);for(let i=0;i<len;i++)d[i]=(r()*2-1)*Math.pow(1-i/len,2.4);}return b;}
 const LIMITS={gentle:[-10,4,.005],loud:[-3,20,.001],off:[0,1,.005]};
+// loudness the pro master aims for: streaming level, club level, or no limiting at all
+const TARGET={gentle:-14,loud:-9};
+// mix character per style: sidechain depth, reverb amounts, drum glue, master warmth and tone
+const MIX_STYLES={
+  auto:{duck:.28,plate:.16,room:.12,glue:.5,warm:.3,tilt:0,low:1},
+  lofi:{duck:.16,plate:.2,room:.2,glue:.6,warm:.6,tilt:-2.5,low:1.5},
+  hiphop:{duck:.22,plate:.14,room:.14,glue:.6,warm:.4,tilt:-.5,low:1.5},
+  trap:{duck:.3,plate:.12,room:.08,glue:.45,warm:.35,tilt:1,low:2},
+  drill:{duck:.3,plate:.12,room:.08,glue:.45,warm:.35,tilt:.8,low:2},
+  house:{duck:.45,plate:.16,room:.1,glue:.55,warm:.3,tilt:1,low:1},
+  techno:{duck:.5,plate:.18,room:.12,glue:.6,warm:.45,tilt:.5,low:1},
+  reggaeton:{duck:.3,plate:.14,room:.1,glue:.5,warm:.3,tilt:.8,low:1.5},
+  pop:{duck:.3,plate:.16,room:.1,glue:.5,warm:.25,tilt:1.2,low:1},
+  ambient:{duck:0,plate:.34,room:.1,glue:.3,warm:.2,tilt:-.5,low:.5},
+};
+const mixStyle=()=>MIX_STYLES[state.mix&&state.mix.style]||MIX_STYLES.auto;
 function tonal(snd){return snd.origin==="free"&&/^(bass|chords|melody)$/.test(snd.group);}
 function inKey(st){if(settings.scale==="major"){const pc=((st%12)+12)%12;if(pc===3||pc===8||pc===10)st+=1;}const k=settings.key>6?settings.key-12:settings.key;return st+k;}
+const isKick=snd=>!!snd&&snd.group==="drums"&&/kick|bass ?drum|\bbd\b/i.test(snd.name);
+const isHat=snd=>!!snd&&snd.group==="drums"&&/hat|shaker|ride|tamb|cabasa/i.test(snd.name);
+// which bus of the pro mixer a sound goes through
+function roleOf(snd){if(!snd)return"music";const g=snd.group;if(g==="drums")return"drums";if(g==="bass")return"bass";if(snd.origin==="free"&&g!=="vocal")return"music";return"own";}
+let CAL_DB=-9;
+// passes everything below 0.8 untouched, then rounds peaks off so nothing goes over -1 dBFS
+function ceilCurve(){const n=4096,c=new Float32Array(n),T=.8,C=.891;for(let i=0;i<n;i++){const x=i/(n-1)*2-1,a=Math.abs(x);c[i]=Math.sign(x)*(a<=T?a:T+(C-T)*Math.tanh((a-T)/(C-T)));}return c;}
 function makeEngine(c,offline){
+  const pro=settings.sound!=="classic";
   const master=c.createGain();
   const comp=c.createDynamicsCompressor();comp.attack.value=.005;comp.release.value=.15;
-  master.connect(comp);comp.connect(c.destination);
   const nodes=new Map(),irs={};
   const set=(p,v)=>{if(!p||!Number.isFinite(v))return;if(offline)p.value=v;else p.setTargetAtTime(v,c.currentTime,.012);};
-  const eng={c,master,nodes,offline,comp,bpm:80};
-  if(!offline&&c.createAnalyser){eng.man=c.createAnalyser();eng.man.fftSize=1024;comp.connect(eng.man);}
-  eng.applyMaster=()=>{master.gain.value=.8*dbToGain(settings.masterDb);const L=LIMITS[settings.limiter]||LIMITS.gentle;comp.threshold.value=L[0];comp.ratio.value=L[1];comp.attack.value=L[2];};
-  eng.applyMaster();
+  const eng={c,master,nodes,offline,comp,bpm:80,pro};
+  const out=c.createGain();out.connect(c.destination);eng.out=out;
+  const bq=(type,f,q,g)=>{const b=c.createBiquadFilter();b.type=type;b.frequency.value=f;if(q!=null)b.Q.value=q;if(g!=null)b.gain.value=g;return b;};
+  const dyn=(th,ra,at,re,kn)=>{const d=c.createDynamicsCompressor();d.threshold.value=th;d.ratio.value=ra;d.attack.value=at;d.release.value=re;d.knee.value=kn;return d;};
+  const gain=v=>{const g=c.createGain();g.gain.value=v;return g;};
+  const chain=(...n)=>{for(let i=0;i<n.length-1;i++)n[i].connect(n[i+1]);return n[n.length-1];};
   eng.ir=(type,size)=>{const k=type+size;return irs[k]||(irs[k]=makeIR(c,type,size));};
+  if(!pro){
+    master.connect(comp);comp.connect(out);
+    eng.busFor=()=>master;
+    eng.applyMaster=()=>{master.gain.value=.8*dbToGain(settings.masterDb);const L=LIMITS[settings.limiter]||LIMITS.gentle;comp.threshold.value=L[0];comp.ratio.value=L[1];comp.attack.value=L[2];};
+  }else{
+    // busses: drums glue together, bass and music duck under the kick, everything shares one room and one plate
+    const sum=gain(1);
+    const room=c.createConvolver();room.buffer=eng.ir("room",.15);chain(room,bq("highpass",220,.7),bq("lowpass",6500,.7),sum);
+    const pre=c.createDelay(.2);pre.delayTime.value=.022;const plate=c.createConvolver();plate.buffer=eng.ir("plate",.45);
+    chain(pre,plate,bq("highpass",280,.7),bq("lowpass",7200,.7),sum);
+    // drums: glue compressor, a little parallel crunch, a short room
+    const dI=gain(.62),dGlue=dyn(-20,2.5,.012,.14,6),dOut=chain(dI,bq("highpass",28,.7),dGlue,gain(1));dOut.connect(sum);
+    const crushSh=c.createWaveShaper(),crushG=gain(0);chain(dOut,crushSh,bq("highpass",180,.7),crushG,sum);
+    const roomS=gain(0);chain(dOut,roomS,room);
+    // bass: clean sub, ducks under the kick, warmed up
+    const bI=gain(.58),bDuck=gain(1),bPre=gain(1),bSh=c.createWaveShaper(),bOut=gain(1);bSh.oversample="2x";chain(bI,bq("highpass",30,.7),bDuck,bPre,bSh,bOut,sum);
+    // music: low cut and mud cut so it sits above the bass, ducks under the kick, sent to the plate
+    const mI=gain(.5),mDuck=gain(1),mOut=chain(mI,bq("highpass",95,.7),bq("peaking",330,.9,-2.5),bq("highshelf",7000,.7,1.5),mDuck);mOut.connect(sum);
+    const mPs=gain(0);chain(mOut,mPs,pre);
+    // the user's own sounds: gentle levelling only, so they stay as recorded
+    const oI=gain(.62),oOut=chain(oI,bq("highpass",40,.7),dyn(-18,2,.008,.12,8));oOut.connect(sum);const oPs=gain(0);chain(oOut,oPs,pre);
+    const B={drums:dI,bass:bI,music:mI,own:oI};
+    // master: sub clean-up, tone, glue, three-band compression, saturation, limiter, ceiling
+    const lowS=bq("lowshelf",85,null,0),air=bq("highshelf",10000,.7,0),glue=dyn(-16,1.8,.03,.25,10);
+    chain(sum,master,bq("highpass",24,.7),lowS,bq("peaking",260,.8,-1),air,glue);
+    const lr4=(type,f)=>{const a=bq(type,f,.7071),b=bq(type,f,.7071);a.connect(b);return[a,b];};
+    const mb=gain(1);
+    {const[a,b]=lr4("lowpass",150);glue.connect(a);chain(b,dyn(-22,2.5,.025,.22,8),mb);}
+    {const[a,b]=lr4("highpass",150),[x,y]=lr4("lowpass",3000);glue.connect(a);b.connect(x);chain(y,dyn(-24,2,.012,.16,8),mb);}
+    {const[a,b]=lr4("highpass",150),[x,y]=lr4("highpass",3000);glue.connect(a);b.connect(x);chain(y,dyn(-28,2,.005,.1,8),mb);}
+    const satIn=gain(1),satPre=gain(.3),sh=c.createWaveShaper(),satOut=gain(1);sh.oversample="4x";
+    const drive=gain(1),lim=dyn(-3,20,.002,.06,0),ceil=c.createWaveShaper();ceil.curve=ceilCurve();ceil.oversample="none";
+    chain(mb,satIn,satPre,sh,satOut,drive,lim,ceil,out);
+    // limiter off: keep the clean-up and tone, skip compression and limiting
+    const bypass=gain(0);air.connect(bypass);bypass.connect(ceil);
+    eng.drive=drive;eng.extraDb=0;
+    eng.busFor=snd=>B[roleOf(snd)];
+    // the shapers keep one fixed curve; warmth is how hard the signal is pushed into it
+    const shCurve=k=>{const n=2048,cv=new Float32Array(n),nk=Math.tanh(k);for(let i=0;i<n;i++){const x=i/(n-1)*2-1;cv[i]=Math.tanh(k*x)/nk;}return cv;};
+    const K=3,slope=K/Math.tanh(K);crushSh.curve=shCurve(6);sh.curve=shCurve(K);bSh.curve=shCurve(K);
+    eng.applyStyle=()=>{const S=mixStyle();
+      set(roomS.gain,S.room);set(mPs.gain,S.plate);set(oPs.gain,S.plate*.7);
+      set(crushG.gain,.2*S.glue);dGlue.threshold.value=-14-12*S.glue;
+      set(lowS.gain,S.low);set(air.gain,S.tilt);
+      const w=.08+S.warm*.35;set(satPre.gain,w);set(satOut.gain,1/(w*slope));
+      const wb=.08+S.warm*.25;set(bPre.gain,wb);set(bOut.gain,1/(wb*slope));};
+    eng.applyMaster=()=>{const on=settings.limiter!=="off",t=TARGET[settings.limiter]??-14;
+      set(master.gain,on?1:.8*dbToGain(settings.masterDb));set(bypass.gain,on?0:1);set(satIn.gain,on?1:0);
+      // calibrated so a typical song lands near the target; export measures it and corrects it exactly
+      set(drive.gain,on?dbToGain(t+14+CAL_DB+settings.masterDb+eng.extraDb):0);};
+    // sidechain: dip under each kick and come back up over part of a beat, drawn as short straight ramps
+    let dk={when:-1,d:0,rel:1,end:-1};
+    const dkVal=t=>{if(t>=dk.end||t<dk.when)return 1;const x=t-dk.when;if(x<.004)return 1-dk.d*x/.004;const y=(x-.004)/(dk.rel-.004);return 1-dk.d*(1-y)*(1-y);};
+    eng.duckAt=when=>{const d=mixStyle().duck;if(!d)return;const rel=Math.max(.06,60/eng.bpm*.42),v0=dkVal(when);
+      for(const g of[bDuck.gain,mDuck.gain]){g.cancelScheduledValues(when);g.setValueAtTime(v0,when);g.linearRampToValueAtTime(1-d,when+.004);
+        for(const y of[.25,.5,.75,1])g.linearRampToValueAtTime(1-d*(1-y)*(1-y),when+.004+(rel-.004)*y);}
+      dk={when,d,rel,end:when+rel};};
+  }
+  if(!offline&&c.createAnalyser){eng.man=c.createAnalyser();eng.man.fftSize=1024;out.connect(eng.man);}
+  if(!eng.applyStyle)eng.applyStyle=()=>{};if(!eng.duckAt)eng.duckAt=()=>{};
+  eng.applyMaster();eng.applyStyle();
   eng.setTempo=(bpm)=>{eng.bpm=bpm;for(const t of state.tracks)if(nodes.has(t.id))eng.apply(t);};
   const killUnit=u=>{for(const o of u.osc)try{o.stop();}catch(e){}try{u.i.disconnect();u.o.disconnect();}catch(e){}};
   // each pedal in the chain is its own little graph; they are wired in the order they sit on the board
@@ -788,19 +955,23 @@ function makeEngine(c,offline){
     if(sig!==n.sig){try{n.input.disconnect();}catch(e){}for(const id in n.u)try{n.u[id].o.disconnect();}catch(e){}
       let prev=n.input;for(const id of act){prev.connect(n.u[id].i);prev=n.u[id].o;}prev.connect(n.vol);n.sig=sig;}
     const get=k=>pv(t,k);for(const id of act)try{n.u[id].set(get,set);}catch(e){console.warn("pedal",id,e);}
-    set(n.vol.gain,t.mute?0:dbToGain(t.fx.vol));if(n.pan)set(n.pan.pan,t.fx.pan);};
+    set(n.vol.gain,t.mute?0:dbToGain(t.fx.vol));if(n.pan)set(n.pan.pan,t.fx.pan);route(t,n);};
+  // sends a track to the bus that suits its sound, and moves it if the sound changes
+  const route=(t,n)=>{const dest=eng.busFor(soundById(t.soundId));if(n.dest===dest)return;const last=n.pan||n.vol;try{last.disconnect();}catch(e){}last.connect(dest);if(n.an)last.connect(n.an);n.dest=dest;};
+  eng.route=t=>{const n=nodes.get(t.id);if(n)route(t,n);};
   eng.get=(t)=>{let n=nodes.get(t.id);if(n)return n;
     const input=c.createGain(),vol=c.createGain(),pan=c.createStereoPanner?c.createStereoPanner():null;
-    if(pan){vol.connect(pan);pan.connect(master);}else vol.connect(master);
-    n={input,vol,pan,u:{},sig:null};
-    if(!offline&&c.createAnalyser){n.an=c.createAnalyser();n.an.fftSize=512;(pan||vol).connect(n.an);}
-    nodes.set(t.id,n);eng.apply(t);return n;};
+    if(pan)vol.connect(pan);
+    n={input,vol,pan,u:{},sig:null,dest:null};
+    if(!offline&&c.createAnalyser){n.an=c.createAnalyser();n.an.fftSize=512;}
+    nodes.set(t.id,n);route(t,n);eng.apply(t);return n;};
   // pedals that follow the beat (the ducker) get every step from the scheduler
   eng.tick=(t,when,step)=>{const n=nodes.get(t.id);if(!n)return;for(const id in n.u){const u=n.u[id];if(u.tick&&!(t.byp||{})[id])u.tick(when,step);}};
   eng.drop=(id)=>{const n=nodes.get(id);if(!n)return;for(const k in n.u)killUnit(n.u[k]);try{n.input.disconnect();n.vol.disconnect();if(n.pan)n.pan.disconnect();}catch(e){}nodes.delete(id);};
   return eng;
 }
-let live=makeEngine(ctx,false);
+
+
 
 
 function hash01(n){return mulberry(n*2654435761>>>0)();}
@@ -815,19 +986,29 @@ function playHit(eng,t,snd,when,semis,hitN,stepAbs,stepDur){
   let play=dur/rate;if(gate)play=Math.min(play,gate);
   if(play<.005)return;
   const n=eng.get(t),src=c.createBufferSource(),g=c.createGain();
+  let vel=1;
+  if(eng.pro){if(n.dest!==eng.busFor(snd))eng.route(t);
+    if(snd.group==="drums"&&!t.raw){const s=stepAbs%16,hr=hash01(stepAbs*7+t.seed);
+      if(isHat(snd))vel=(s%4===0?1:s%2===0?.8:.64)*(.93+hr*.12);else if(!isKick(snd))vel=.93+hr*.09;
+      if(!isKick(snd)&&state.swing>.08)when=Math.max(when,when+(hr-.5)*.006);}
+    if(isKick(snd)&&!t.mute)eng.duckAt(when);}
   src.buffer=buf;src.playbackRate.value=rate;
   const fin=(off>0||fx.reverse)?.005:.0015,fout=Math.min(.012,play/3);
-  g.gain.setValueAtTime(0,when);g.gain.linearRampToValueAtTime(1,when+fin);g.gain.setValueAtTime(1,Math.max(when+fin,when+play-fout));g.gain.linearRampToValueAtTime(0,when+play);
+  g.gain.setValueAtTime(0,when);g.gain.linearRampToValueAtTime(vel,when+fin);g.gain.setValueAtTime(vel,Math.max(when+fin,when+play-fout));g.gain.linearRampToValueAtTime(0,when+play);
   src.connect(g);g.connect(n.input);src.start(when,off);src.stop(when+play+.01);
   src.onended=()=>{try{g.disconnect();}catch(e){}};
 }
 
 /* ---------- state ---------- */
-const SONG_BARS=8;
-const state={bpm:80,swing:.15,tracks:[]};
+const SONG_BARS=8,MAX_TRACKS=12;
+const state={bpm:80,swing:.15,tracks:[],mix:{style:"auto"}};
+let live=makeEngine(ctx,false);
 let tid=0;
 const defaultFx=()=>({pitch:0,reverse:false,chop:0,chopMode:"order",length:0,fit:false,filterType:"lowpass",cutoff:20000,drive:0,delay:0,reverb:0,vol:0,pan:0});
-function newTrack(soundId,o={}){const fx=Object.assign(defaultFx(),o.fx||{});return{id:"t"+(++tid),soundId,seed:Math.floor(Math.random()*1e6),mute:false,solo:false,open:false,steps:o.steps||Array(16).fill(null),bars:o.bars||Array(SONG_BARS).fill(true),fx,chain:o.chain?o.chain.filter(id=>PEDALS[id]):deriveChain(fx),byp:Object.assign({},o.byp||{}),color:o.color||TC[(tid-1)%TC.length]};}
+function newTrack(soundId,o={}){const fx=Object.assign(defaultFx(),o.fx||{});return{id:"t"+(++tid),soundId,seed:Math.floor(Math.random()*1e6),mute:false,solo:false,open:false,steps:o.steps||Array(16).fill(null),bars:o.bars||Array(SONG_BARS).fill(true),prog:cleanProg(o.prog),fx,chain:o.chain?o.chain.filter(id=>PEDALS[id]):deriveChain(fx),byp:Object.assign({},o.byp||{}),color:o.color||TC[(tid-1)%TC.length]};}
+// semitones added to every note of a track, one value per bar, for chord changes
+function cleanProg(p){if(!Array.isArray(p)||!p.length)return null;const o=Array.from({length:SONG_BARS},(_,i)=>{const n=Math.round(+p[i]);return Number.isFinite(n)?clamp(n,-12,12):0;});return o.some(v=>v)?o:null;}
+const cleanMix=m=>({style:m&&MIX_STYLES[m.style]?m.style:"auto"});
 function sanitizeFx(f){f=f||{};const d=defaultFx();const num=(v,a,b,def)=>{v=Number(v);return Number.isFinite(v)?clamp(v,a,b):def;};
   return{pitch:Math.round(num(f.pitch,-24,24,0)),reverse:!!f.reverse,chop:[0,2,4,8,16].includes(Number(f.chop))?Number(f.chop):0,chopMode:f.chopMode==="random"?"random":"order",
     length:Math.round(num(f.length,0,16,0)),fit:!!f.fit,filterType:f.filterType==="highpass"?"highpass":"lowpass",cutoff:num(f.cutoff,30,20000,d.cutoff),
@@ -1060,7 +1241,7 @@ function scheduleStep(eng,n,when,cnt,sd){
   const s=n%16,bar=Math.floor(n/16)%SONG_BARS;
   const anySolo=state.tracks.some(t=>t.solo);
   for(const t of state.tracks){if(eng.nodes.has(t.id))eng.tick(t,when,n);if(t.mute||(anySolo&&!t.solo)||!t.bars[bar])continue;const v=t.steps[s];if(v===null||v===undefined)continue;const snd=soundById(t.soundId);if(!snd)continue;
-    cnt[t.id]=(cnt[t.id]||0)+1;playHit(eng,t,snd,when,v,cnt[t.id]-1,n,sd);}
+    cnt[t.id]=(cnt[t.id]||0)+1;playHit(eng,t,snd,when,v+(t.prog?t.prog[bar]||0:0),cnt[t.id]-1,n,sd);}
 }
 function click(when,accent){const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=accent?1600:1000;g.gain.setValueAtTime(.0001,when);g.gain.exponentialRampToValueAtTime(.35,when+.002);g.gain.exponentialRampToValueAtTime(.0001,when+.05);o.connect(g);g.connect(ctx.destination);o.start(when);o.stop(when+.06);}
 function tick(){const sd=stepDur();while(nextBase<ctx.currentTime+.12){const when=nextBase+((stepN%2)?state.swing*sd:0);scheduleStep(live,stepN,when,counts,sd);if(settings.metro&&stepN%4===0)click(nextBase,stepN%16===0);uiQueue.push({n:stepN,time:when});nextBase+=sd;stepN++;}}
@@ -1543,35 +1724,52 @@ if(phoneMQ){phoneMQ.addEventListener?phoneMQ.addEventListener("change",onPhoneCh
 if(isPhone()){layout.view="arrange";paintMTab();}
 
 /* ---------- describe: keyword matcher ---------- */
+// each style: drum patterns, bass and chord parts as {step: semitones}, a chord progression (one root per bar) and a mix style.
+// Chord roots stay in the key: the pad is a 1-5-9 voicing and melodies use 0, 2, 7, 12, 14 and 19, so every note fits every chord.
 const GENRES={
-  lofi:{bpm:84,swing:.18,kick:[0,7,10],snare:[4,12],hat:[0,2,4,6,8,10,12,14],bass:{0:0,3:0,8:-4,11:-2},pad:true,keys:{2:7,6:3,10:5,14:3},lofi:true},
-  hiphop:{bpm:90,swing:.12,kick:[0,3,8,10],snare:[4,12],hat:[0,2,4,6,8,10,12,14],bass:{0:0,3:0,8:3,10:-2},keys:{0:0,6:3,8:7}},
-  trap:{bpm:140,swing:0,kick:[0,6,10],clap:[8],hat:[...Array(16).keys()],bass:{0:0,6:0,10:-2},bassLen:6},
-  house:{bpm:122,swing:.04,kick:[0,4,8,12],clap:[4,12],hat:[2,6,10,14],bass:{2:0,6:0,10:3,14:-2},pad:true},
-  techno:{bpm:128,swing:0,kick:[0,4,8,12],clap:[4,12],hat:[2,6,10,14],bass:{2:0,3:0,6:0,7:0,10:0,11:0,14:0,15:0},drive:.35,bassLen:1},
-  drill:{bpm:142,swing:0,kick:[0,3,10],snare:[8],hat:[0,3,6,8,11,14],bass:{0:0,3:0,10:-1},bassLen:5},
-  reggaeton:{bpm:95,swing:0,kick:[0,4,8,12],snare:[3,6,11,14],hat:[2,6,10,14],bass:{0:0,8:-2}},
-  ambient:{bpm:70,swing:0,kick:[],hat:[],pad:true,keys:{0:0,6:7,11:3},noDrums:true},
+  lofi:{bpm:84,swing:.18,kick:[0,7,10],snare:[4,12],hat:[0,2,4,6,8,10,12,14],perc:["shaker",[2,6,10,14]],bass:["bass",{0:0,7:0,10:7},4],chords:["pad",{0:0},16],lead:["keys",{2:12,6:7,10:14,14:7}],prog:[0,0,5,5,-4,-4,-2,-2],dark:true,noRiser:true},
+  hiphop:{bpm:90,swing:.12,kick:[0,3,8,10],snare:[4,12],hat:[0,2,4,6,8,10,12,14],ohat:[14],perc:["rim",[7,15]],bass:["bass",{0:0,3:0,8:7,10:12},3],chords:["pad",{0:0},16],lead:["keys",{0:7,6:12,8:14}],prog:[0,0,0,0,-4,-4,-2,-2]},
+  trap:{bpm:140,swing:0,kick:[0,6,10],clap:[8],hat:[...Array(16).keys()],perc:["rim",[3,11]],bass:["808",{0:0,6:0,10:7},6],chords:["pad",{0:0},16],lead:["pluck",{0:12,3:14,6:19,8:12,11:14,14:7}],prog:[0,0,-4,-4,3,3,-2,-2]},
+  drill:{bpm:142,swing:0,kick:[0,10],snare:[8],hat:[0,3,6,8,11,14],perc:["rim",[6,14]],bass:["808",{0:0,3:0,10:-5},5],chords:["pad",{0:0},16],lead:["pluck",{0:12,4:19,8:14,12:12}],prog:[0,0,-4,-4,0,0,3,3]},
+  house:{bpm:122,swing:.04,kick:[0,4,8,12],clap:[4,12],hat:[...Array(16).keys()],ohat:[2,6,10,14],ohatAll:true,perc:["shaker",[1,3,5,7,9,11,13,15]],bass:["bass",{2:0,6:0,10:12,14:0},2],chords:["stab",{3:0,10:0},3],pad2:true,prog:[0,0,-4,-4,3,3,-2,-2]},
+  techno:{bpm:128,swing:0,kick:[0,4,8,12],clap:[4,12],hat:[...Array(16).keys()],ohat:[2,6,10,14],ohatAll:true,perc:["rim",[3,7,13]],bass:["bass",{2:0,3:0,6:0,7:0,10:0,11:0,14:0,15:0},1],chords:["stab",{0:0,6:0,11:0},2],drive:.3,prog:[0,0,0,0,0,0,-4,-4]},
+  reggaeton:{bpm:95,swing:0,kick:[0,4,8,12],snare:[3,6,11,14],hat:[2,6,10,14],perc:["shaker",[0,2,4,6,8,10,12,14]],bass:["808",{0:0,3:0,8:7,11:7},3],chords:["pad",{0:0},16],lead:["pluck",{0:12,3:14,6:12,10:7}],prog:[0,0,-4,-4,3,3,-2,-2]},
+  pop:{bpm:104,swing:0,kick:[0,6,8],clap:[4,12],hat:[0,2,4,6,8,10,12,14],ohat:[14],perc:["shaker",[1,3,5,7,9,11,13,15]],bass:["bass",{0:0,6:0,8:0,10:12,14:7},2],chords:["pad",{0:0},16],lead:["pluck",{0:12,2:14,4:19,8:14,10:12,12:7}],prog:[0,0,-4,-4,3,3,-2,-2]},
+  ambient:{bpm:70,swing:0,noDrums:true,chords:["pad",{0:0},16],lead:["keys",{0:7,6:14,11:12}],pluck:true,prog:[0,0,-4,-4,5,5,3,3],noRiser:true},
 };
+// built-in levels, set by rendering each part alone and matching a typical record's balance
+const LEVEL={kick:-1,snare:-6,clap:0,hat:-17.5,"open-hat":-19,rim:-14.5,shaker:-21,bass:-1,"808":-3,pad:-11,stab:-7,keys:-11,pluck:-7,crash:-12,riser:-14};
 const STEPS=(arr,v=0)=>Array.from({length:16},(_,i)=>arr.includes(i)?v:null);
 const MAP=(m)=>Array.from({length:16},(_,i)=>m[i]!==undefined?m[i]:null);
+const BARS_A=[1,1,1,1,0,0,0,0].map(Boolean),BARS_B=[0,0,0,0,1,1,1,1].map(Boolean);
 function keywordPlan(text){
   const p=text.toLowerCase(),has=(re)=>re.test(p);
   let g="hiphop",gname="hip-hop";
   if(has(/lo-?fi|chill|study/)){g="lofi";gname="lo-fi";}else if(has(/trap/)){g="trap";gname="trap";}else if(has(/drill/)){g="drill";gname="drill";}
   else if(has(/house|disco|dance/)){g="house";gname="house";}else if(has(/techno|rave/)){g="techno";gname="techno";}
   else if(has(/reggaeton|dembow|latin/)){g="reggaeton";gname="reggaeton";}else if(has(/ambient|drone|calm|meditat/)){g="ambient";gname="ambient";}
+  else if(has(/\bpop\b|radio|catchy|upbeat/)){g="pop";gname="pop";}
   const G=GENRES[g];let bpm=G.bpm;const said=[`${gname} template`];
   const m=p.match(/(\d{2,3})\s*bpm/);if(m)bpm=+m[1];else{if(has(/\bslow|slower|lazy|chill/))bpm-=8;if(has(/\bfast|faster|upbeat|energetic|hype/))bpm+=14;}
   bpm=clamp(bpm,50,190);
   const noDrums=G.noDrums||has(/no drums|without drums|drumless/);
   const dark=has(/dark|muffled|underwater|warm|lo-?fi|dusty/),wet=has(/dream|spac|wet|wash|ethereal|airy|lush/),dirty=has(/dirty|gritt|distort|crunch|heavy/);
-  const build=has(/build|intro|evolv|grow/);
-  const T=[];const dr=(id,arr,fx={})=>{if(arr&&arr.length)T.push({sound:id,steps:STEPS(arr),bars:build?[0,0,1,1,1,1,1,1].map(Boolean):undefined,fx:Object.assign({cutoff:G.lofi||dark?6500:20000,drive:dirty?.4:(G.drive||0)},fx)});};
-  if(!noDrums){dr("kick",G.kick,{vol:0});dr("snare",G.snare,{vol:-3,reverb:wet?.25:.08});dr("clap",G.clap,{vol:-3,reverb:.15});dr("hat",G.hat,{vol:-9,pan:.25});}
-  if(G.bass)T.push({sound:"bass",steps:MAP(G.bass),bars:build?[0,0,0,0,1,1,1,1].map(Boolean):undefined,fx:{length:G.bassLen||3,cutoff:dark?1800:5000,drive:dirty?.5:(G.drive||0),vol:-2}});
-  if(G.pad)T.push({sound:"pad",steps:STEPS([0]),fx:{length:16,cutoff:dark?1400:3000,reverb:wet?.6:.35,vol:-8}});
-  if(G.keys)T.push({sound:"keys",steps:MAP(G.keys),fx:{cutoff:dark?2500:9000,delay:wet?.45:.25,reverb:wet?.5:.2,vol:-6,pan:-.2}});
+  const build=has(/build|intro|evolv|grow/),major=settings.scale==="major";
+  // a minor progression by default; in a major key, I–V–vi–IV
+  const prog=major?[0,0,7,7,9,9,5,5]:G.prog;
+  const dBars=build?[0,0,1,1,1,1,1,1].map(Boolean):undefined,bBars=build?[0,0,0,0,1,1,1,1].map(Boolean):undefined;
+  const T=[];const lv=id=>LEVEL[id]??-6;
+  const dr=(id,arr,fx={},bars=dBars)=>{if(arr&&arr.length)T.push({sound:id,steps:STEPS(arr),bars,fx:Object.assign({vol:lv(id),cutoff:G.dark||dark?7000:20000,drive:dirty?.4:0},fx)});};
+  if(!noDrums){dr("kick",G.kick,{cutoff:20000,drive:dirty?.4:(G.drive||0)});dr("snare",G.snare,{reverb:wet?.2:0});dr("clap",G.clap,{reverb:wet?.2:0});dr("hat",G.hat,{pan:.22});
+    if(G.ohat)dr("open-hat",G.ohat,{pan:-.18},G.ohatAll?dBars:BARS_B);
+    if(G.perc)dr(G.perc[0],G.perc[1],{pan:-.35},build?[0,0,0,0,1,1,1,1].map(Boolean):BARS_B);}
+  if(G.bass){const[id,map,len]=G.bass;T.push({sound:id,steps:MAP(map),bars:bBars,prog,fx:{length:len,vol:lv(id),cutoff:dark?2000:20000,drive:dirty?.5:(G.drive||0)}});}
+  if(G.chords){const[id,map,len]=G.chords;T.push({sound:id,steps:MAP(map),prog,fx:{length:len,vol:lv(id),cutoff:dark?2200:20000,reverb:wet?.35:0}});}
+  if(G.pad2)T.push({sound:"pad",steps:STEPS([0]),bars:BARS_B,prog,fx:{length:16,vol:lv("pad")-3,cutoff:dark?1800:20000}});
+  if(G.lead){const[id,map]=G.lead;T.push({sound:id,steps:MAP(map),prog,fx:{vol:lv(id),pan:.2,cutoff:dark?3000:20000,delay:wet?.4:.18,reverb:wet?.35:0}});}
+  if(G.pluck)T.push({sound:"pluck",steps:MAP({4:19,10:14}),bars:BARS_B,prog,fx:{vol:lv("pluck")-2,pan:-.3,delay:.4}});
+  if(!noDrums)T.push({sound:"crash",steps:STEPS([0]),bars:[1,0,0,0,1,0,0,0].map(Boolean),fx:{vol:lv("crash"),pan:-.1}});
+  if(!G.noRiser)T.push({sound:"riser",steps:STEPS([0]),bars:[0,0,0,1,0,0,0,1].map(Boolean),fx:{vol:lv("riser"),fit:true,length:16}});
   // the user's own media
   const own=sounds.filter(s=>s.origin==="yours"),pool=own.length?own:sounds.filter(s=>s.origin==="example");
   const mentionsOwn=has(/\bmy\b|vocal|vox|voice|sample|loop|upload|acapella|recording/);
@@ -1580,7 +1778,7 @@ function keywordPlan(text){
     if(named.length)picks=named;else if(has(/vocal|vox|voice|acapella|sing/))picks=pool.filter(s=>s.group==="vocal").slice(0,2);
     if(!picks.length)picks=pool.slice(0,2);}
   const chop=has(/chop|slice|cut up|cut-up|stutter/),stutter=has(/stutter|glitch/);
-  picks.forEach((s,i)=>{let steps,fx={vol:-3,cutoff:dark?3500:20000,reverb:wet?.55:.2,delay:wet?.35:.1,pan:i?.3:0};
+  picks.forEach((s,i)=>{let steps,fx={vol:-3,cutoff:dark?3500:20000,reverb:wet?.45:.08,delay:wet?.35:.1,pan:i?.3:0};
     if(chop){fx.chop=stutter?16:8;fx.chopMode=has(/random|shuffle/)||stutter?"random":"order";fx.length=stutter?1:2;
       if(has(/off-?beat|upbeat|syncop/))steps=STEPS([2,6,10,14]);else if(has(/every beat|on the beat|on beat/))steps=STEPS([0,4,8,12]);else if(stutter)steps=STEPS([...Array(16).keys()]);else steps=STEPS([0,3,6,10,12]);}
     else{steps=STEPS([0]);fx.fit=true;fx.length=16;}
@@ -1590,8 +1788,9 @@ function keywordPlan(text){
   if(picks.length){said.push(`${picks.length===1?"“"+picks[0].name+"”":picks.length+" of your sounds"}${chop?` chopped into ${stutter?16:8} slices`:" stretched over each bar"}${chop&&has(/off-?beat/)?" on the offbeats":""}`);}
   else if(mentionsOwn)said.push("no sounds of yours found to use");
   if(has(/revers|backward/)&&picks.length)said.push("reversed");
+  said.push(major?"I–V–vi–IV chords":"chord changes every two bars");
   if(dark)said.push("darker filters");if(wet)said.push("extra reverb and delay");if(dirty)said.push("drive on drums and bass");if(build)said.push("drums enter in bar 3, bass in bar 5");
-  return{bpm,swing:G.swing,tracks:T,summary:`${said.join(", ")}, ${bpm} BPM.`};
+  return{bpm,swing:G.swing,mix:{style:g},tracks:T.slice(0,MAX_TRACKS),summary:`${said.join(", ")}, ${bpm} BPM.`};
 }
 
 /* ---------- describe: Claude ---------- */
@@ -1622,10 +1821,10 @@ let sampleFn=null,ctl=null;
   $("engineNote").textContent=sampleFn?"Claude arranges it. Only sound names and lengths are sent, never the audio.":"Claude isn't available in this view, so a keyword matcher arranges it.";})();
 function applyPlan(p){
   if(!p||!Array.isArray(p.tracks))throw new Error("no tracks");
-  const tracks=[];for(const pt of p.tracks.slice(0,10)){const snd=soundById(pt.sound);if(!snd)continue;
+  const tracks=[];for(const pt of p.tracks.slice(0,MAX_TRACKS)){const snd=soundById(pt.sound);if(!snd)continue;
     const steps=Array.from({length:16},(_,i)=>{const v=Array.isArray(pt.steps)?pt.steps[i]:null;if(v===null||v===undefined||v===false)return null;if(v===true)return 0;const n=Math.round(+v);return Number.isFinite(n)?clamp(n,-24,24):null;});
     const bars=Array.from({length:SONG_BARS},(_,i)=>Array.isArray(pt.bars)&&pt.bars.length?!!pt.bars[i]:true);
-    tracks.push(newTrack(snd.id,{steps,bars,fx:sanitizeFx(pt.fx)}));}
+    tracks.push(newTrack(snd.id,{steps,bars,prog:pt.prog,fx:sanitizeFx(pt.fx)}));}
   if(!tracks.length)throw new Error("no usable tracks");
   const dfx=defaultFx();for(const t of tracks){const prev=state.tracks.find(o=>o.soundId===t.soundId);if(!prev)continue;t.color=prev.color;
     for(const id of prev.chain||[]){const P=PEDALS[id];if(!P)continue;const legacy=P.params.some(k=>k in dfx);if(legacy&&!t.chain.includes(id))continue;if(!t.chain.includes(id))t.chain.push(id);
@@ -1634,6 +1833,7 @@ function applyPlan(p){
   state.tracks=tracks;
   if(Number.isFinite(+p.bpm)){state.bpm=clamp(Math.round(+p.bpm),50,190);$("bpm").value=state.bpm;live.setTempo(state.bpm);}
   if(Number.isFinite(+p.swing)){state.swing=clamp(+p.swing,0,.3);$("swing").value=state.swing;}
+  if(p.mix&&typeof p.mix==="object"){state.mix=cleanMix(p.mix);live.applyStyle();}
   renderTracks();
 }
 function showResult(txt,kind){const r=$("result");r.hidden=false;r.dataset.kind=kind||"ok";r.textContent=txt;}
@@ -1818,10 +2018,10 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
 
 /* snapshots and undo */
 const snaps=[];
-const snapOf=()=>({bpm:state.bpm,swing:state.swing,tracks:state.tracks.map(t=>JSON.parse(JSON.stringify({id:t.id,soundId:t.soundId,seed:t.seed,mute:t.mute,locked:!!t.locked,raw:!!t.raw,steps:t.steps,bars:t.bars,fx:t.fx,chain:t.chain,byp:t.byp,solo:!!t.solo,color:t.color})))});
+const snapOf=()=>({bpm:state.bpm,swing:state.swing,mix:Object.assign({},state.mix),tracks:state.tracks.map(t=>JSON.parse(JSON.stringify({id:t.id,soundId:t.soundId,seed:t.seed,mute:t.mute,locked:!!t.locked,raw:!!t.raw,steps:t.steps,bars:t.bars,prog:t.prog||null,fx:t.fx,chain:t.chain,byp:t.byp,solo:!!t.solo,color:t.color})))});
 function restore(s){for(const t of state.tracks)live.drop(t.id);
-  state.tracks=s.tracks.map(o=>Object.assign(newTrack(o.soundId,{steps:o.steps.slice(),bars:o.bars.slice(),fx:o.fx,chain:o.chain,byp:o.byp,color:o.color}),{id:o.id,seed:o.seed,mute:o.mute,solo:!!o.solo,locked:o.locked,raw:o.raw}));
-  state.bpm=s.bpm;state.swing=s.swing;$("bpm").value=state.bpm;$("swing").value=state.swing;live.setTempo(state.bpm);renderTracks();updUndo();}
+  state.tracks=s.tracks.map(o=>Object.assign(newTrack(o.soundId,{steps:o.steps.slice(),bars:o.bars.slice(),prog:o.prog,fx:o.fx,chain:o.chain,byp:o.byp,color:o.color}),{id:o.id,seed:o.seed,mute:o.mute,solo:!!o.solo,locked:o.locked,raw:o.raw}));
+  state.bpm=s.bpm;state.swing=s.swing;state.mix=cleanMix(s.mix);live.applyStyle();$("bpm").value=state.bpm;$("swing").value=state.swing;live.setTempo(state.bpm);renderTracks();updUndo();}
 function takeSnap(){if(ai.snapshots){snaps.push(snapOf());if(snaps.length>20)snaps.shift();}updUndo();}
 function updUndo(){const b=$("aiUndo");if(b){b.hidden=!snaps.length;b.textContent=snaps.length>1?`Undo AI change (${snaps.length})`:"Undo AI change";}}
 
@@ -1841,7 +2041,7 @@ function guardPlan(p){
   const locked=state.tracks.filter(t=>t.locked);
   tracks=tracks.filter(pt=>!locked.some(t=>t.soundId===pt.sound));
   if(locked.length)notes.push(locked.length+" protected track"+(locked.length>1?"s":"")+" left untouched");
-  return{plan:Object.assign({},p,{tracks:tracks.slice(0,Math.max(0,10-locked.length))}),notes:[...new Set(notes)],locked};
+  return{plan:Object.assign({},p,{tracks:tracks.slice(0,Math.max(0,MAX_TRACKS-locked.length))}),notes:[...new Set(notes)],locked};
 }
 function applyGuarded(g){
   const lockedSnap=g.locked.map(t=>({t,i:state.tracks.indexOf(t)}));
@@ -1858,7 +2058,7 @@ function diff(before,after){const out=[],nm=id=>(soundById(id)||{name:id}).name;
   if(Math.abs(before.swing-after.swing)>.001)out.push(`Swing ${Math.round(before.swing*100)}% → ${Math.round(after.swing*100)}%`);
   const bs=new Map(before.tracks.map(t=>[t.soundId,t])),as=new Map(after.tracks.map(t=>[t.soundId,t]));
   for(const[id,t]of as){const o=bs.get(id);if(!o){out.push(`Added ${nm(id)}, ${t.steps.filter(v=>v!==null).length} hits a bar`);continue;}
-    const ch=[];if(JSON.stringify(o.steps)!==JSON.stringify(t.steps))ch.push("new pattern");if(JSON.stringify(o.bars)!==JSON.stringify(t.bars))ch.push("plays in different bars");
+    const ch=[];if(JSON.stringify(o.steps)!==JSON.stringify(t.steps))ch.push("new pattern");if(JSON.stringify(o.prog||null)!==JSON.stringify(t.prog||null))ch.push("new chord changes");if(JSON.stringify(o.bars)!==JSON.stringify(t.bars))ch.push("plays in different bars");
     for(const k in t.fx)if(JSON.stringify(o.fx[k])!==JSON.stringify(t.fx[k]))ch.push(k==="vol"?`volume ${Math.round(o.fx.vol)} → ${Math.round(t.fx.vol)} dB`:fxLabel(k));
     if(ch.length)out.push(`${nm(id)}: ${ch.slice(0,4).join(", ")}${ch.length>4?" and more":""}`);}
   for(const[id]of bs)if(!as.has(id))out.push(`Removed ${nm(id)}`);
@@ -1890,10 +2090,10 @@ function keywordTake(text,take){
   if(ai.refWords.trim())t+=" "+ai.refWords;
   const p=keywordPlan(t);const r=mulberry(Date.now()%1e6+take*977);
   const bold=ai.personality==="experimental"?Math.max(ai.creativity,75):ai.creativity;
-  if(ai.personality==="minimal")p.tracks=p.tracks.filter(x=>!/^(hat|clap|keys)$/.test(x.sound)||p.tracks.length<=3);
+  if(ai.personality==="minimal")p.tracks=p.tracks.filter(x=>!/^(hat|clap|keys|open-hat|rim|shaker|crash|riser|pluck)$/.test(x.sound)||p.tracks.length<=3);
   const amt=(bold-50)/50+take*.35;
-  if(amt>0)for(const x of p.tracks){for(let i=0;i<16;i++)if(r()<amt*.18)x.steps[i]=x.steps[i]===null?0:(r()<.5?null:x.steps[i]);
-    x.fx=Object.assign({},x.fx);if(r()<amt*.5)x.fx.delay=Math.min(1,(x.fx.delay||0)+.25);if(r()<amt*.4)x.fx.reverb=Math.min(1,(x.fx.reverb||0)+.3);if(r()<amt*.25&&!/kick|snare|hat|clap/.test(x.sound))x.fx.reverse=true;}
+  if(amt>0)for(const x of p.tracks){if(/^(crash|riser)$/.test(x.sound))continue;for(let i=0;i<16;i++)if(r()<amt*.18)x.steps[i]=x.steps[i]===null?0:(r()<.5?null:x.steps[i]);
+    x.fx=Object.assign({},x.fx);if(r()<amt*.5)x.fx.delay=Math.min(1,(x.fx.delay||0)+.25);if(r()<amt*.4)x.fx.reverb=Math.min(1,(x.fx.reverb||0)+.3);if(r()<amt*.25&&!/kick|snare|hat|clap|rim|shaker|808|bass/.test(x.sound))x.fx.reverse=true;}
   if(take>0){p.bpm=clamp(p.bpm+(take%2?4:-4)*take,50,190);p.summary="Take "+String.fromCharCode(65+take)+": "+p.summary;}
   return p;}
 
@@ -1917,7 +2117,7 @@ let lastText="",lastSrc="";
 function present(i){activeTake=i;const p=takes[i];if(!p)return;const before=pending?pending.before:snapOf();
   let g,changes;
   if(ai.workMode==="suggest"){g=guardPlan(p);const sim=snapOf();sim.bpm=Number.isFinite(+p.bpm)?clamp(Math.round(+p.bpm),50,190):sim.bpm;sim.swing=Number.isFinite(+p.swing)?clamp(+p.swing,0,.3):sim.swing;
-    sim.tracks=g.locked.map(t=>({soundId:t.soundId,steps:t.steps,bars:t.bars,fx:t.fx})).concat(g.plan.tracks.map(pt=>({soundId:pt.sound,steps:Array.from({length:16},(_,k)=>Array.isArray(pt.steps)&&pt.steps[k]!=null&&pt.steps[k]!==false?Math.round(+pt.steps[k]||0):null),bars:Array.from({length:SONG_BARS},(_,k)=>Array.isArray(pt.bars)&&pt.bars.length?!!pt.bars[k]:true),fx:sanitizeFx(pt.fx)})));
+    sim.tracks=g.locked.map(t=>({soundId:t.soundId,steps:t.steps,bars:t.bars,fx:t.fx})).concat(g.plan.tracks.map(pt=>({soundId:pt.sound,steps:Array.from({length:16},(_,k)=>Array.isArray(pt.steps)&&pt.steps[k]!=null&&pt.steps[k]!==false?Math.round(+pt.steps[k]||0):null),bars:Array.from({length:SONG_BARS},(_,k)=>Array.isArray(pt.bars)&&pt.bars.length?!!pt.bars[k]:true),prog:cleanProg(pt.prog),fx:sanitizeFx(pt.fx)})));
     changes=diff(before,sim);pending={before,g,p};}
   else{if(pending)restore(pending.before);else takeSnap();
     g=guardPlan(p);applyGuarded(g);changes=diff(before,snapOf());pending={before,g,p};if(!playing)start();
@@ -2036,10 +2236,10 @@ async function songSet(sg){if(!sg||!Array.isArray(sg.tracks))return{ok:false,dro
       if(buf&&!soundById(t.soundId)){const snd=addSound(L.name,"free",buf,L.group);snd.lib={id:L.id,kit:L.kit,hit:L.hit,cat:L.cat,lo:L.lo,hi:L.hi};}}catch(e){}}
   const keep=sg.tracks.filter(t=>soundById(t.soundId)&&Array.isArray(t.steps)&&Array.isArray(t.bars));
   if(!keep.length&&sg.tracks.length)return{ok:false,dropped:sg.tracks.length};
-  restore({bpm:clamp(Math.round(Number(sg.bpm)||80),50,190),swing:clamp(Number(sg.swing)||0,0,.3),tracks:keep});
+  restore({bpm:clamp(Math.round(Number(sg.bpm)||80),50,190),swing:clamp(Number(sg.swing)||0,0,.3),mix:sg.mix,tracks:keep});
   for(const t of keep){const n=parseInt(String(t.id).slice(1),10);if(n>tid)tid=n;}
   renderSounds();return{ok:true,dropped:sg.tracks.length-keep.length};}
-window.__lw={ui:{efx,addPedal,removePedal,deriveChain,PEDALS,PDEF,get layout(){return layout},applyLayout,showPanel,popOut,dockPanel,usePreset,select,knob,handleShortcut,addTrackFromSound,moveTrack},state,sounds,keywordPlan,buildPrompt,applyPlan,renderMix,encodeWav,zip,crc32,settings,km:{captureKey,listen:i=>{listenIdx=i;}},rec:{rec,startRecKeys,stopRecKeys,recNote,startRecMic,stop},song:{get:songGet,set:songSet}};
+window.__lw={cal:v=>{CAL_DB=v;live.applyMaster();},ui:{efx,addPedal,removePedal,deriveChain,PEDALS,PDEF,get layout(){return layout},applyLayout,showPanel,popOut,dockPanel,usePreset,select,knob,handleShortcut,addTrackFromSound,moveTrack},state,sounds,keywordPlan,buildPrompt,applyPlan,renderMix,encodeWav,zip,crc32,settings,km:{captureKey,listen:i=>{listenIdx=i;}},rec:{rec,startRecKeys,stopRecKeys,recNote,startRecMic,stop},song:{get:songGet,set:songSet}};
 window.dispatchEvent(new Event("lw-ready"));
 })();
 
