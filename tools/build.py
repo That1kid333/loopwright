@@ -322,7 +322,7 @@ page("account", "Account · Loopwright", "Your Loopwright plan, credits and sett
 
 DOWNLOAD = f"""
 <section class="page-hero left"><div class="hero-bg" aria-hidden="true"><div class="grid"></div><div class="orb a"></div></div><div class="wrap hero-copy">
-<span class="eyebrow">Version 0.1.4</span>
+<span class="eyebrow">Version 0.1.5</span>
 <h1>Download <span class="grad">Loopwright</span></h1>
 <p class="lead">Install the desktop app, then sign in with your Loopwright account.</p>
 </div></section>

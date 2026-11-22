@@ -184,7 +184,7 @@ else:
     bar = """<div class="hostbar" id="lwbar" style="display:flex;align-items:center;gap:8px;margin-left:auto;font-size:.78rem;color:var(--fg-2);white-space:nowrap">
 <span id="lwsave" class="hostnote"></span><span id="lwwho"></span><a href="https://loopwright-studio.netlify.app/account/" target="_blank" style="color:var(--accent);text-decoration:none">Account</a><a href="#" id="lwout" style="color:var(--accent);text-decoration:none">Sign out</a></div>"""
     # Same free library and online My sounds as the website (copies of site/assets/*.js in desktop/src).
-    head_extra = '<script src="supabase.js"></script><script src="auth.js"></script><script src="originals.js"></script><script src="library.js"></script><script src="my-sounds.js"></script>'
+    head_extra = '<script src="diag.js"></script><script src="supabase.js"></script><script src="auth.js"></script><script src="originals.js"></script><script src="library.js"></script><script src="my-sounds.js"></script>'
     tail = """<script>
 LWA.requireUser().then(function(u){ if(u) { document.getElementById("lwwho").textContent = u.email; if (window.LWCloud) window.LWCloud.start(); } });
 document.getElementById("lwout").onclick = function(e){ e.preventDefault(); LWA.signOut(); };
