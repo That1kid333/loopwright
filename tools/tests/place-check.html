@@ -41,6 +41,7 @@ async function run(){out.innerHTML="";pass=0;fail=0;sum.textContent="Running…"
   add("t-hit","Tok",mkBuf(w,.35,(t,r)=>t<.06?0:(r()*.5+Math.sin(2*Math.PI*900*(t-.06))*.5)*Math.exp(-(t-.06)*25)));
   add("t-pad","Warm swell",mkBuf(w,4,t=>(Math.sin(2*Math.PI*233.08*t)+.5*Math.sin(2*Math.PI*466.16*t))*.35*Math.min(1,t/1.2)*Math.min(1,(4-t)/.5)));
   L.refreshSounds();
+  const peaks=[];const pk=async lab=>{const b=await L.renderMix(),d=monoOf(b);let m=0,at=0;for(let i=0;i<d.length;i++){const a=Math.abs(d[i]);if(a>m){m=a;at=i;}}peaks.push(`${lab} ${m.toFixed(2)} at ${(at/b.sampleRate).toFixed(2)} s`);};
   const solo=async id=>{for(const t of L.state.tracks)t.solo=t.id===id;const b=await L.renderMix();for(const t of L.state.tracks)t.solo=false;return b;};
   // 1. the note: in the song's key, on its steps, landing on the grid despite 80 ms of silence
   let r=L.place("t-note","");const tn=L.state.tracks.find(t=>t.id===r.trackId);
@@ -51,26 +52,30 @@ async function run(){out.innerHTML="";pass=0;fail=0;sum.textContent="Running…"
     row("Note lands on the beat (silence at its front skipped)",worst<.012,`first notes at ${exp.slice(0,3).map(x=>x.toFixed(3)).join(", ")} s; heard within ${(worst*1000).toFixed(1)} ms`);
     const first=exp[0],seg=d.subarray(Math.floor((first+.03)*b.sampleRate),Math.floor((first+.03)*b.sampleRate)+8192),A=P.analyze(seg,b.sampleRate,"x","");
     row("First note is the song's root (A)",A.midi!=null&&((A.midi%12)+12)%12===9,`heard ${A.midi!=null?P.NN[((A.midi%12)+12)%12]:"no pitch"} (${A.cents} cents), the sound itself is E`);}
+  await pk("note");
   // 2. the riser: ends right as the drop (bar 5) begins
   r=L.place("t-riser","");const tr=L.state.tracks.find(t=>t.id===r.trackId);row("Riser is placed",!!r.trackId,r.summary||r.error);
   if(tr){const b=await solo(tr.id),d=monoOf(b),hop=Math.round(b.sampleRate*.01);let pk=0,pt=0;for(let i=0;i+hop<d.length;i+=hop){const v=rms(d,i,i+hop);if(v>pk){pk=v;pt=i/b.sampleRate;}}
     const target=4*bar;row("Riser peaks right before the drop",pt<target+.005&&target-pt<.12,`loudest at ${pt.toFixed(3)} s, the drop starts at ${target.toFixed(3)} s`);}
+  await pk("riser");
   // 3. a short hit: fills a gap in the drums and starts on its step
   r=L.place("t-hit","");const th=L.state.tracks.find(t=>t.id===r.trackId);row("Hit is placed",!!r.trackId,r.summary||r.error);
   if(th){const used=L.state.tracks.filter(t=>t!==th&&/kick|snare|hat/.test(t.soundId)).flatMap(t=>t.steps.map((v,i)=>v!=null?i:-1)).filter(i=>i>=0);const mine=th.steps.map((v,i)=>v!=null?i:-1).filter(i=>i>=0);
     row("Hit goes where the kick, snare and hats are not",mine.every(i=>!used.includes(i)),`hit on steps ${mine.map(i=>i+1).join(", ")}; drums use ${[...new Set(used)].sort((a,b)=>a-b).map(i=>i+1).join(", ")}`);
     const b=await solo(th.id),d=monoOf(b),ons=onsets(d,b.sampleRate),k0=th.bars.indexOf(true),e=k0*bar+mine[0]*sd,o=ons.reduce((a,c)=>Math.abs(c-e)<Math.abs(a-e)?c:a,1e9);
     row("Hit starts on its step",Math.abs(o-e)<.012,`expected ${e.toFixed(3)} s, heard ${o.toFixed(3)} s`);}
+  await pk("hit");
   // 4. a pad with a request: whole song, quiet; checks bars, level and the low cut
   r=L.place("t-pad","whole song, quiet");const tp=L.state.tracks.find(t=>t.id===r.trackId);row("Pad is placed from plain words",!!r.trackId,r.summary||r.error);
   if(tp){row("Pad plays through the song and sits low",tp.bars.filter(Boolean).length>=4&&tp.bars[0]&&tp.fx.vol<-6,`bars ${tp.bars.map((x,i)=>x?i+1:"").filter(Boolean).join(",")}, level ${tp.fx.vol} dB, pitch ${tp.fx.pitch||0}`);
     const pm=L.state.tracks.find(t=>t.soundId==="kick"),bk=await solo(pm.id),bp=await solo(tp.id),dk=monoOf(bk),dp=monoOf(bp),lk=20*Math.log10(rms(dk,0,dk.length)),lp=20*Math.log10(rms(dp,0,dp.length));
     row("Pad is quieter than the kick in the render",lp<lk-3,`kick ${lk.toFixed(1)} dB, pad ${lp.toFixed(1)} dB`);}
+  await pk("pad");
   // 5. undo puts the song back; the edit is a normal track the user can change
   const before=L.state.tracks.length;const t2=L.state.tracks.find(t=>t.soundId==="t-pad");if(t2){t2.steps[4]=0;}
   row("New parts are normal, editable tracks",!!t2&&t2.steps[4]===0&&Array.isArray(t2.chain),`chain: ${(t2&&t2.chain||[]).join(", ")}`);
   const full=await L.renderMix(),fd=monoOf(full),pkv=fd.reduce((a,v)=>Math.max(a,Math.abs(v)),0);
-  row("Song with the new parts peaks no higher than before",pkv>.05&&pkv<=Math.max(1,peak0)+.02,`peak before ${peak0.toFixed(3)}, after ${pkv.toFixed(3)}, ${full.duration.toFixed(1)} s`);
+  row("Song with the new parts peaks no higher than before",pkv>.05&&pkv<=Math.max(1,peak0)+.02,`peak before ${peak0.toFixed(3)}, after ${pkv.toFixed(3)}; after each: ${peaks.join("; ")}`);
   sum.textContent=`${pass} passed, ${fail} failed`;sum.className=fail?"bad":"ok";}
 document.getElementById("again").onclick=()=>run().catch(e=>{sum.textContent="Error: "+e.message;sum.className="bad";});
 run().catch(e=>{sum.textContent="Error: "+e.message;sum.className="bad";});

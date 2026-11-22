@@ -2198,7 +2198,7 @@ const PLACE=(()=>{
     // a long sound that is not stretched plays once and rings, so start it only as often as it fits
     if(!fitBars&&!align&&steps.length===1&&steps[0]===0&&nb>1.15&&bars.length>1){const held=kind==="pad"||kind==="texture";const every=held?Math.max(1,Math.floor(nb)):Math.ceil(nb-.1);const first=bars[0];bars=bars.filter(b=>(b-first)%every===0);if(held&&every===1)fx.length=16;}
     if(wish.once)bars=bars.slice(0,1);
-    if(align==="end"){const n=Math.round(len/sd);if(n<=16)steps=[cl(16-n,0,15)];else{steps=[0];fx.fit=true;fx.length=16;}}
+    if(align==="end"){const plen=Math.max(.01,A.duration-(A.start>.004&&A.attack<.15?A.start:0)),n=Math.ceil(plen/sd-.05);if(n<=16)steps=[cl(16-n,0,15)];else{steps=[0];fx.fit=true;fx.length=16;}}
     if(fitBars){fx.fit=true;if(fitBars>=2){fx.chop=fitBars;fx.length=16;steps=[0];}else fx.length=fitBars===.5?8:16;
     }
     // notes in key: offsets for tuned parts
