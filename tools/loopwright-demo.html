@@ -102,6 +102,11 @@ select.sel{padding:4px 6px;border:1px solid var(--line-2);border-radius:7px;back
 .chip:hover{border-color:var(--accent)}
 .result{border-left:3px solid var(--accent);padding:8px 12px;background:var(--panel-2);border-radius:0 9px 9px 0;font-size:.86rem}
 .result[data-kind="err"]{border-color:var(--warn)}
+.placepop{position:fixed;z-index:60;width:min(440px,calc(100vw - 24px));display:flex;flex-direction:column;gap:10px}
+.placepop textarea{width:100%;resize:vertical;min-height:52px;background:var(--panel-2);color:var(--fg-1);border:1px solid var(--line-2);border-radius:9px;padding:8px 10px;font:inherit;font-size:.88rem}
+.placepop textarea:focus{outline:none;border-color:var(--accent)}
+.placepop .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.placepop .sp{flex:1}
 .result .ask-row,.ask-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
 .ai-changes{margin:6px 0 4px 18px;padding:0;font-size:.82rem}
 .ai-changes li{margin:2px 0}
@@ -806,8 +811,8 @@ let live=makeEngine(ctx,false);
 function hash01(n){return mulberry(n*2654435761>>>0)();}
 function playHit(eng,t,snd,when,semis,hitN,stepAbs,stepDur){
   const fx=efx(t),c=eng.c;let buf=snd.buffer;if(fx.reverse)buf=reversed(buf);
-  let off=0,dur=buf.duration;
-  if(fx.chop>1){dur=buf.duration/fx.chop;const idx=fx.chopMode==="random"?Math.floor(hash01(stepAbs*31+t.seed)*fx.chop):hitN%fx.chop;off=idx*dur;}
+  const base=Math.min(fx.start||0,Math.max(0,buf.duration-.01));let off=base,dur=buf.duration-base;
+  if(fx.chop>1){dur=(buf.duration-base)/fx.chop;const idx=fx.chopMode==="random"?Math.floor(hash01(stepAbs*31+t.seed)*fx.chop):hitN%fx.chop;off=base+idx*dur;}
   let rate=Math.pow(2,(fx.pitch+(tonal(snd)&&!t.raw?inKey(semis):semis))/12);
   const gate=fx.length>0?fx.length*stepDur:0;
   if(fx.fit)rate*=dur/((fx.length||16)*stepDur);
@@ -826,12 +831,12 @@ function playHit(eng,t,snd,when,semis,hitN,stepAbs,stepDur){
 const SONG_BARS=8;
 const state={bpm:80,swing:.15,tracks:[]};
 let tid=0;
-const defaultFx=()=>({pitch:0,reverse:false,chop:0,chopMode:"order",length:0,fit:false,filterType:"lowpass",cutoff:20000,drive:0,delay:0,reverb:0,vol:0,pan:0});
+const defaultFx=()=>({pitch:0,reverse:false,chop:0,chopMode:"order",length:0,fit:false,filterType:"lowpass",cutoff:20000,drive:0,delay:0,reverb:0,vol:0,pan:0,start:0});
 function newTrack(soundId,o={}){const fx=Object.assign(defaultFx(),o.fx||{});return{id:"t"+(++tid),soundId,seed:Math.floor(Math.random()*1e6),mute:false,solo:false,open:false,steps:o.steps||Array(16).fill(null),bars:o.bars||Array(SONG_BARS).fill(true),fx,chain:o.chain?o.chain.filter(id=>PEDALS[id]):deriveChain(fx),byp:Object.assign({},o.byp||{}),color:o.color||TC[(tid-1)%TC.length]};}
 function sanitizeFx(f){f=f||{};const d=defaultFx();const num=(v,a,b,def)=>{v=Number(v);return Number.isFinite(v)?clamp(v,a,b):def;};
   return{pitch:Math.round(num(f.pitch,-24,24,0)),reverse:!!f.reverse,chop:[0,2,4,8,16].includes(Number(f.chop))?Number(f.chop):0,chopMode:f.chopMode==="random"?"random":"order",
     length:Math.round(num(f.length,0,16,0)),fit:!!f.fit,filterType:f.filterType==="highpass"?"highpass":"lowpass",cutoff:num(f.cutoff,30,20000,d.cutoff),
-    drive:num(f.drive,0,1,0),delay:num(f.delay,0,1,0),reverb:num(f.reverb,0,1,0),vol:num(f.vol,-30,6,0),pan:num(f.pan,-1,1,0)};}
+    drive:num(f.drive,0,1,0),delay:num(f.delay,0,1,0),reverb:num(f.reverb,0,1,0),vol:num(f.vol,-30,6,0),pan:num(f.pan,-1,1,0),start:num(f.start,0,2,0)};}
 
 /* ---------- pedals: each effect is a pedal in a per-track chain ---------- */
 const TC=["#3fd0bf","#ffb020","#a98bff","#ff7a59","#5ee38f","#4aa3ff","#ff6fb5","#e6d84a","#7fd4ff","#ff9f43"];
@@ -898,6 +903,7 @@ const PEDALS={
   reverse:{name:"Reverser",type:"Reverse",cat:"Sample",color:"#7b4fe0",params:["reverse"],add:{reverse:true},desc:"Plays the sound backwards"},
   gate:{name:"Step Gate",type:"Note length",cat:"Sample",color:"#23936a",params:["length"],add:{length:2},desc:"Cuts each hit after a set number of steps",knobs:[K("length","Steps",0,16,0,v=>v?String(v):"Full",{step:1})],presets:[["Staccato",{length:1}],["Half bar",{length:8}]]},
   stretch:{name:"Stretch",type:"Fit to tempo",cat:"Sample",color:"#b9821a",params:["fit"],add:{fit:true},desc:"Speeds the sound to fit the gate, or a whole bar"},
+  trim:{name:"Start Trim",type:"Trim",cat:"Sample",color:"#4f7f2a",params:["start"],add:{start:.02},desc:"Skips the silence at the front so the sound lands on the beat",knobs:[K("start","Skip",0,2,0,v=>v>=1?v.toFixed(2)+" s":Math.round(v*1000)+" ms",{step:.001})],presets:[["Tight",{start:.01}],["Late start",{start:.25}]]},
 
   /* EQ and filters */
   filter:{name:"Filter",type:"Tone",cat:"EQ and filter",color:"#16929f",params:["filterType","cutoff","filterQ"],add:{cutoff:2200},desc:"Darkens or thins the sound",
@@ -1085,6 +1091,7 @@ const ICON={
   play:'<svg class="ico" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z" fill="currentColor" stroke="none"/></svg>',
   plus:'<svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
   trash:'<svg class="ico" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  fit:'<svg class="ico" viewBox="0 0 24 24"><path d="M4 7h9M4 12h6M4 17h9"/><path d="M15 12h6M18 9v6"/></svg>',
   lock:'<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>',
   grip:'<svg class="ico" viewBox="0 0 24 24" style="width:14px;height:14px;opacity:.6"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3"/></svg>',
 };
@@ -1157,13 +1164,14 @@ function renderSounds(){fillLiveSelect();const box=$("sounds");box.innerHTML="";
   for(const[g,label]of GROUPS){const items=list.filter(s=>(GROUPS.some(x=>x[0]===s.group)?s.group:"")===g);if(!items.length)continue;
     box.appendChild(h("div","bgroup label",label));
     for(const s of items){const r=h("div","snd");r.draggable=true;r.setAttribute("role","listitem");r.title="Drag onto the timeline, or press +";
-      r.innerHTML=`<span class="dot" style="background:${s.origin==="free"?"var(--fg-3)":"var(--yours)"}"></span><span class="meta"><span class="name"></span><canvas aria-hidden="true"></canvas></span><span class="acts"><button type="button" data-a="play" aria-label="Hear ${escH(s.name)}" title="Hear">${ICON.play}</button><button type="button" data-a="add" aria-label="Add a ${escH(s.name)} track" title="Add track">${ICON.plus}</button>${s.origin==="yours"?`<button type="button" data-a="rm" aria-label="Remove ${escH(s.name)}" title="Remove">${ICON.trash}</button>`:""}</span>`;
+      r.innerHTML=`<span class="dot" style="background:${s.origin==="free"?"var(--fg-3)":"var(--yours)"}"></span><span class="meta"><span class="name"></span><canvas aria-hidden="true"></canvas></span><span class="acts"><button type="button" data-a="play" aria-label="Hear ${escH(s.name)}" title="Hear">${ICON.play}</button><button type="button" data-a="add" aria-label="Add a ${escH(s.name)} track" title="Add track">${ICON.plus}</button><button type="button" data-a="fit" aria-label="Put ${escH(s.name)} into the song" title="Put it into the song">${ICON.fit}</button>${s.origin==="yours"?`<button type="button" data-a="rm" aria-label="Remove ${escH(s.name)}" title="Remove">${ICON.trash}</button>`:""}</span>`;
       r.querySelector(".name").textContent=s.name;
       if(s.origin!=="free"){const b=h("span","badge "+s.origin,BADGE[s.origin]+(s.cloudId?" · saved":""));if(s.origin==="yours")b.title=s.cloudId?"Saved to your account":"Only in this browser for now";b.style.marginLeft="6px";r.querySelector(".name").after(b);r.querySelector(".meta").style.display="block";}
       r.addEventListener("dragstart",e=>{r.classList.add("dragging");startDrag(e,{kind:"sound",id:s.id},s.name);});
       r.ondblclick=()=>addTrackFromSound(s);
       r.querySelector('[data-a="play"]').onclick=()=>preview(s);
       r.querySelector('[data-a="add"]').onclick=()=>addTrackFromSound(s);
+      r.querySelector('[data-a="fit"]').onclick=e=>{e.stopPropagation();openPlace(s,r);};
       const rm=r.querySelector('[data-a="rm"]');if(rm)rm.onclick=()=>{if(s.cloudId&&!confirm(`Delete ${s.name} from your account? This can't be undone.`))return;if(s.cloudId)MS.remove(s.cloudId).catch(e=>toast("Couldn't delete it from your account. Try again."));const i=sounds.indexOf(s);sounds.splice(i,1);state.tracks=state.tracks.filter(t=>{if(t.soundId===s.id){live.drop(t.id);return false;}return true;});renderSounds();renderTracks();};
       box.appendChild(r);requestAnimationFrame(()=>drawWave(r.querySelector("canvas"),s.buffer,s.origin==="free"?cssVar("--fg-3"):cssVar("--yours"),14));}}
 }
@@ -1478,7 +1486,7 @@ function usePreset(name){const P=PRESETS[name];if(!P)return;const r=wsRect();
   Object.assign(layout,{name,browser:P.browser,view:P.view,dock:P.dock,tab:P.tab,bh:P.bh,floats:{}});
   if(P.floats==="fx"){const w=Math.min(700,r.width-32);layout.floats.fx={x:Math.max(8,r.width-w-16),y:12,w,h:Math.min(320,Math.max(200,r.height-P.bh-40))};}
   if(P.btab){btab=P.btab;renderSounds();}applyLayout();saveLayout();toast(`${name} layout`);}
-function closePops(except){["recPop","layoutMenu","aiPop"].forEach(id=>{if(id!==except&&$(id))$(id).hidden=true;});$("recBtn").setAttribute("aria-expanded",false);$("layoutBtn").setAttribute("aria-expanded",false);const pm=document.getElementById("pedMenu");if(pm&&pm.remove)pm.remove();}
+function closePops(except){["recPop","layoutMenu","aiPop","placePop"].forEach(id=>{if(id!==except&&$(id))$(id).hidden=true;});$("recBtn").setAttribute("aria-expanded",false);$("layoutBtn").setAttribute("aria-expanded",false);const pm=document.getElementById("pedMenu");if(pm&&pm.remove)pm.remove();}
 function renderLayoutMenu(){const m=$("layoutMenu");m.innerHTML="";m.appendChild(h("span","label mh","Layouts"));
   const item=(label,kbd,fn)=>{const b=h("button",null,`<span>${escH(label)}</span>${kbd?`<kbd>${kbd}</kbd>`:""}`);b.type="button";b.onclick=()=>{m.hidden=true;fn();};m.appendChild(b);};
   for(const n in PRESETS)item(n+(layout.name===n?" ✓":""),"",()=>usePreset(n));
@@ -1597,10 +1605,12 @@ function keywordPlan(text){
 /* ---------- describe: Claude ---------- */
 function stateForPrompt(){return state.tracks.map(t=>({sound:t.soundId,steps:t.steps,bars:t.bars.map(b=>b?1:0),fx:efx(t)}));}
 function buildPrompt(text){
-  const lib=sounds.map(s=>({id:s.id,name:s.name,origin:s.origin==="free"?"free built-in":"user's own upload",role:s.group||"unknown",seconds:+s.duration.toFixed(2),root:s.origin==="free"&&/bass|pad|keys/.test(s.id)?"C":"unknown"}));
+  const lib=sounds.map(s=>{const o={id:s.id,name:s.name,origin:s.origin==="free"?"free built-in":"user's own upload",role:s.group||"unknown",seconds:+s.duration.toFixed(2),root:s.origin==="free"&&/bass|pad|keys/.test(s.id)?"C":"unknown"};
+    if(s.origin!=="free"){const a=placeInfo(s);if(a){o.sounds_like=a.kind;if(a.midi!=null&&a.steady&&a.conf>=.5){o.root=PLACE.NN[((a.midi%12)+12)%12];o.to_key=((settings.key-a.midi)%12+18)%12-6;}if(a.start>.004&&a.attack<.15)o.silence_at_start_s=+a.start.toFixed(3);}}return o;});
   return `You arrange music in a browser sampler called Loopwright. You never create new audio. You only place and process the sounds in this library:
 ${JSON.stringify(lib)}
 
+The song is in ${PLACE.NN[settings.key]} ${settings.scale}. Built-in bass, pad and keys move into that key by themselves. For a user upload with a "to_key" value, set fx.pitch to to_key (plus any octave) so it plays in the song's key, unless you set fit. For one with "silence_at_start_s", set fx.start to that number so it lands on the beat.
 The song is 8 bars of 4/4. Each track plays one 16-step pattern (16th notes) that repeats in the bars you switch on.
 Current arrangement (may be empty): ${JSON.stringify({bpm:state.bpm,swing:state.swing,tracks:stateForPrompt()})}
 
@@ -1611,7 +1621,7 @@ Rules:
 - If the request reads like a change to the current arrangement, keep everything they didn't ask to change.
 - steps: exactly 16 entries, null = silent, an integer = semitone offset from the sound's own pitch (0 = as recorded). Bass, pad and keys are rooted on C, so write bass lines and melodies as semitone offsets in a key.
 - bars: exactly 8 entries of 1 or 0, so the song can build (intro, drop, breakdown).
-- fx keys: pitch (-12..12 semitones, whole track), reverse (bool), chop (0,2,4,8,16 equal slices; each hit plays the next slice), chopMode ("order"|"random"), length (0..16 steps; 0 = let the sound ring), fit (bool, speeds the sound or slice so it lasts exactly length steps, or 16 if length is 0; good for loops and long vocals), filterType ("lowpass"|"highpass"), cutoff (30..20000 Hz), drive (0..1), delay (0..1), reverb (0..1), vol (-30..6 dB), pan (-1..1).
+- fx keys: pitch (-12..12 semitones, whole track), reverse (bool), chop (0,2,4,8,16 equal slices; each hit plays the next slice), chopMode ("order"|"random"), length (0..16 steps; 0 = let the sound ring), fit (bool, speeds the sound or slice so it lasts exactly length steps, or 16 if length is 0; good for loops and long vocals), filterType ("lowpass"|"highpass"), cutoff (30..20000 Hz), drive (0..1), delay (0..1), reverb (0..1), vol (-30..6 dB), pan (-1..1), start (0..2 seconds skipped at the front of the sound).
 - At most 10 tracks. Keep levels balanced: kick around 0 dB, hats around -9 dB.
 
 Reply with JSON only, no prose and no code fence:
@@ -1934,6 +1944,7 @@ $("result").addEventListener("click",e=>{const b=e.target.closest("button");if(!
 async function runAi(){
   const text=$("prompt").value.trim();if(!text){$("prompt").focus();return;}
   ctx.resume();
+  {const pm=placeMatch(text);if(pm){const r=placeSound(pm.sound,text);if(r&&r.track){showAi(`<div>${esc(r.summary)}</div><div class="small muted" style="margin-top:6px">Placed right here in the studio, so no credits were used. Undo puts the song back.</div>`);if(!playing)start();}else if(r)showAi(`<div>${esc(r.error)}</div>`,"err");return;}}
   if(pending&&ai.workMode==="ask"){remember("kept",pending.p.summary);}
   pending=null;takes=[];activeTake=0;lastText=text;
   const n=clamp(ai.takes,1,4),cost=(RUN_CREDITS[settings.mode]||12)*n;
@@ -2017,6 +2028,290 @@ const baseRenderSounds=renderSounds;renderSounds=function(){baseRenderSounds();r
 renderAi();
 window.__lwAi={ai,guardPlan,applyGuarded,diff,keywordTake,fullPrompt,runAi,present,snaps,getMemory:()=>memory,getPending:()=>pending,getTakes:()=>takes};
 
+/* ---------- place a sound into the song: listen to it, then fit it in key, on time and at the right level ---------- */
+const PLACE=(()=>{
+  const NN=["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
+  const db=v=>20*Math.log10(Math.max(v,1e-9));
+  const cl=(v,a,b)=>Math.min(b,Math.max(a,v));
+  const wrap6=s=>{s=((s%12)+12)%12;return s>6?s-12:s;};
+  const median=a=>{const b=a.slice().sort((x,y)=>x-y);return b.length?b[b.length>>1]:NaN;};
+  function mono(buf){const n=buf.length,ch=buf.numberOfChannels||1,o=new Float32Array(n);for(let c=0;c<ch;c++){const d=buf.getChannelData(c);for(let i=0;i<n;i++)o[i]+=d[i]/ch;}return o;}
+  // YIN pitch on one frame; returns {f,clar} or null
+  function yin(x,i0,W,minL,maxL,sr){const d=new Float32Array(maxL+1);for(let t=1;t<=maxL;t++){let s=0;for(let j=0;j<W;j++){const v=x[i0+j]-x[i0+j+t];s+=v*v;}d[t]=s;}
+    let run=0,best=-1;const c=new Float32Array(maxL+1);c[0]=1;for(let t=1;t<=maxL;t++){run+=d[t];c[t]=run>0?d[t]*t/run:1;}
+    for(let t=minL;t<maxL;t++)if(c[t]<.15){while(t+1<maxL&&c[t+1]<c[t])t++;best=t;break;}
+    if(best<0)return null;const a=c[best-1],b=c[best],e=c[best+1],den=a-2*b+e,tt=best+(den?(a-e)/(2*den):0);return{f:sr/tt,clar:1-b};}
+  const MAJ=[6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88],MIN=[6.33,2.68,3.52,5.38,2.6,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
+  function corr(h,p,r){let mh=0,mp=0;for(let i=0;i<12;i++){mh+=h[i];mp+=p[i];}mh/=12;mp/=12;let s=0,a=0,b=0;for(let i=0;i<12;i++){const x=h[(i+r)%12]-mh,y=p[i]-mp;s+=x*y;a+=x*x;b+=y*y;}return a&&b?s/Math.sqrt(a*b):0;}
+  /* what kind of sound is this, where does it really start, how loud, what note */
+  function analyze(x,sr,name,group){
+    const n=x.length,dur=n/sr;let peak=0;for(let i=0;i<n;i++){const v=x[i]<0?-x[i]:x[i];if(v>peak)peak=v;}
+    const A={duration:dur,start:0,peakDb:db(peak),rmsDb:-90,onsets:0,attack:0,slope:0,low:0,zcr:0,midi:null,cents:0,conf:0,steady:false,key:null,kind:"texture",silent:peak<1e-4};
+    if(A.silent)return A;
+    let s0=0;const thr=Math.max(peak*.03,.001);while(s0<n&&Math.abs(x[s0])<thr)s0++;
+    let e0=n-1;const thr2=Math.max(peak*.003,.0003);while(e0>s0&&Math.abs(x[e0])<thr2)e0--;
+    {const bl=Math.max(8,Math.round(sr*.005)),fl=peak*.002;let b=s0;while(b-bl>=0){let q=0;for(let j=b-bl;j<b;j++)q+=x[j]*x[j];if(Math.sqrt(q/bl)<fl)break;b-=bl;}s0=Math.max(0,b);}
+    A.start=Math.max(0,s0-Math.round(sr*.001))/sr;const act=(e0-s0)/sr;A.active=act;
+    // 10 ms envelope
+    const hop=Math.max(1,Math.round(sr*.01)),env=[];for(let i=s0;i<e0;i+=hop){let s=0;const e=Math.min(e0,i+hop);for(let j=i;j<e;j++)s+=x[j]*x[j];env.push(db(Math.sqrt(s/Math.max(1,e-i))));}
+    const emax=Math.max(...env);let sum=0,cnt=0;for(let i=s0;i<e0;i++){sum+=x[i]*x[i];cnt++;}
+    // loudness of the part that sounds (frames within 30 dB of the loudest)
+    let ls=0,lc=0;for(let k=0;k<env.length;k++)if(env[k]>emax-30){ls+=Math.pow(10,env[k]/10);lc++;}A.rmsDb=lc?10*Math.log10(ls/lc):db(Math.sqrt(sum/Math.max(1,cnt)));
+    // onsets: jumps in level of 6 dB or more, at least 70 ms apart
+    let last=-99,on=[];for(let k=2;k<env.length;k++){const d=env[k]-Math.max(env[k-1],env[k-2]);if(d>6&&env[k]>emax-30&&k-last>=7){on.push(k*hop/sr);last=k;}}
+    A.onsets=on.length+1;A.onsetTimes=[0].concat(on);
+    let pk=0;for(let k=1;k<env.length;k++)if(env[k]>env[pk])pk=k;A.attack=pk*hop/sr;
+    // level trend over the sound: rising (riser) or falling (hit, impact)
+    const third=Math.max(1,Math.floor(env.length/3)),avg=(a,b)=>{let s=0,c=0;for(let k=a;k<b;k++){s+=env[k];c++;}return c?s/c:-90;};
+    A.slope=avg(env.length-third,env.length)-avg(0,third);A.headLevel=avg(0,third);A.tailLevel=avg(env.length-third,env.length);
+    // low end (under ~150 Hz) and brightness (zero crossings)
+    const a=1-Math.exp(-2*Math.PI*150/sr);let lp=0,ls2=0,as=0,z=0;for(let i=s0;i<e0;i++){lp+=a*(x[i]-lp);ls2+=lp*lp;as+=x[i]*x[i];if(i>s0&&(x[i]>=0)!==(x[i-1]>=0))z++;}
+    A.low=as>0?Math.sqrt(ls2/as):0;A.zcr=z/Math.max(1e-3,act)/2;
+    // pitch: YIN on a few frames past the attack, on a half-rate copy for speed
+    const ds=sr>32000?2:1,r=sr/ds,m=Math.floor(n/ds),y=new Float32Array(m);for(let i=0;i<m;i++){let s=0;for(let j=0;j<ds;j++)s+=x[i*ds+j]||0;y[i]=s/ds;}
+    const minL=Math.floor(r/1200),maxL=Math.floor(r/38),W=Math.min(1024,Math.max(256,maxL));
+    const f0=Math.floor((s0+Math.min(.04*sr,act*sr*.15))/ds),f1=Math.floor(e0/ds)-W-maxL-1,frames=[],hist=new Array(12).fill(0);
+    const N=f1>f0?Math.min(28,Math.max(1,Math.floor((f1-f0)/(W/2)))):(f1===f0?1:0);
+    for(let k=0;k<N;k++){const i0=N>1?Math.round(f0+(f1-f0)*k/(N-1)):f0;let s=0;for(let j=0;j<W;j++)s+=y[i0+j]*y[i0+j];if(db(Math.sqrt(s/W))<emax-25)continue;
+      const p=yin(y,i0,W,minL,maxL,r);if(p&&p.f>38&&p.f<1300){const md=69+12*Math.log2(p.f/440);frames.push(md);hist[((Math.round(md)%12)+12)%12]+=p.clar;}}
+    const tried=Math.max(1,N);A.conf=frames.length/tried;
+    if(frames.length){const md=median(frames);const dev=median(frames.map(v=>Math.abs(v-md)));A.midi=Math.round(md);A.cents=Math.round((md-Math.round(md))*100);A.steady=dev<.6;A.pitchFrames=frames.length;}
+    if(frames.length>=6&&!A.steady){let best=-2,bk=null;for(let rr=0;rr<12;rr++){for(const[sc,pr]of[["major",MAJ],["minor",MIN]]){const c=corr(hist,pr,rr);if(c>best){best=c;bk={root:rr,scale:sc,score:c};}}}if(best>.55)A.key=bk;}
+    A.kind=classify(A,name,group);return A;}
+  function classify(A,name,group){const nm=(name||"").toLowerCase(),g=group||"";
+    if(/kick|\bbd\b|bass ?drum/.test(nm))return"kick";if(/snare|clap|rim/.test(nm))return"snare";if(/hat|shaker|ride|cymbal|tamb/.test(nm))return"hat";
+    if(/riser|uplift|sweep ?up|build/.test(nm))return"riser";if(/impact|boom|downlift|crash|hit fx|whoosh/.test(nm))return"impact";
+    if(/vocal|vox|voice|sing|acap|choir/.test(nm)||g==="vocal")return"vocal";if(/\bloop\b|groove|break/.test(nm))return"loop";
+    if(/\bpad\b|drone|atmos|texture|ambien/.test(nm)||g==="chords")return"pad";if(/\b808\b|\bbass\b|sub/.test(nm)||g==="bass")return"bass";
+    const pitched=A.conf>=.5&&A.midi!=null;
+    if(A.active<.7&&A.attack<.06&&A.onsets<=2){if(pitched&&A.low>.45&&A.conf>.85&&A.slope>-18&&A.active>.25)return"bass";if(A.low>.45&&A.zcr<600)return"kick";if(A.zcr>3500&&A.low<.12)return"hat";return pitched&&A.steady&&A.low<.45?"note":"perc";}
+    if(A.slope>8&&A.active>=.8)return"riser";
+    if(A.onsets>=3&&A.active>=1)return"loop";
+    if(pitched&&A.steady){if(A.low>.5&&A.midi<52)return"bass";return A.active>1.6&&A.attack>.08?"pad":"note";}
+    if(A.key&&A.active>=1)return"phrase";
+    if(A.attack<.05&&A.slope<-10&&!pitched)return"impact";
+    if(g==="melody")return"note";if(g==="drums")return"perc";
+    return"texture";}
+  /* plain words to wishes; everything is optional */
+  const NUMW={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,first:1,second:2,third:3,fourth:4,fifth:5,sixth:6,seventh:7,eighth:8,last:8};
+  const ROLEW=[["kick",/\bkicks?\b|\bbass ?drums?\b/],["snare",/\bsnares?\b|\bclaps?\b/],["hat",/\bhi-?hats?\b|\bhats?\b|\bshakers?\b/],["bass",/\bbass(line)?\b|\b808s?\b/],["pad",/\bpads?\b|\bchords?\b/],["note",/\bkeys\b|\bpiano\b|\bmelody\b|\blead\b/],["vocal",/\bvocals?\b|\bvox\b|\bvoice\b/],["drums",/\bdrums\b|\bbeat\b/]];
+  function read(text){const t=" "+String(text||"").toLowerCase().replace(/[’']/g,"'")+" ",w={raw:text||""};
+    const has=re=>re.test(t);
+    // where in the song
+    const m=t.match(/\bbars? (\d|one|two|three|four|five|six|seven|eight)(?:\s*(?:-|to|through|and|&)\s*(\d|one|two|three|four|five|six|seven|eight))?/);
+    const num=v=>v==null?null:(/^\d$/.test(v)?+v:NUMW[v]);
+    if(m){const a=num(m[1]),b=num(m[2]);if(a>=1&&a<=8){const lo=a,hi=b&&b>=a&&b<=8?b:a;w.bars=[];if(b&&/and|&/.test(m[0])&&b!==a+1)w.bars=[a-1,b-1];else for(let i=lo;i<=hi;i++)w.bars.push(i-1);w.where="bars";}}
+    else if(has(/\blast (two|2) bars\b/)){w.bars=[6,7];w.where="bars";}
+    else if(has(/\b(before|into|leading into|lead(s|ing)? (up )?(in)?to|building (up )?to|build ?up to|right before) (the )?(drop|chorus|hook|big part|second half)\b|\bbuild-?up\b/))w.where="leadin";
+    else if(has(/\b(at|on|when) the (drop|chorus|hook)( hits| comes in| starts)?\b|\bstart of the (drop|chorus|hook)\b/))w.where="hit";
+    else if(has(/\b(whole|entire) (song|thing|track|time)\b|\bthroughout\b|\beverywhere\b|\ball the way( through)?\b|\ball (8|eight )?bars\b|\bthe whole way\b/))w.where="all";
+    else if(has(/\bevery other bar\b|\balternate bars\b/))w.where="alt";
+    else if(has(/\bintro\b|\bbeginning\b|\bopening\b|\bstart of the (song|track)\b|\bfirst (two|2) bars\b/))w.where="intro";
+    else if(has(/\bfirst half\b|\bverse\b|\bfirst (four|4) bars\b/))w.where="first";
+    else if(has(/\b(drop|chorus|hook|second half|climax|big part|main part|last (four|4) bars)\b/))w.where="drop";
+    else if(has(/\b(breakdown|break down|bridge|quiet part)\b/))w.where="break";
+    else if(has(/\boutro\b|\bending\b|\b(end|ending) of the (song|track)\b|\blast bar\b|\bat the end\b|\bvery end\b/))w.where="outro";
+    if(has(/\b(just )?once\b|\bone time\b|\bsingle hit\b/))w.once=true;
+    // rhythm
+    if(has(/\bfour on the floor\b|\bevery beat\b|\bon the beats?\b|\bquarter notes?\b|\beach beat\b|\bon each beat\b/))w.steps=[0,4,8,12];
+    else if(has(/\b(2|two) and (4|four)\b|\bbackbeat\b/))w.steps=[4,12];
+    else if(has(/\boff ?-?beats?\b|\bupbeats?\b|\bon the and\b|\bin between\b/))w.steps=[2,6,10,14];
+    else if(has(/\beighths?\b|\b8ths?\b|\beighth notes?\b/))w.steps=[0,2,4,6,8,10,12,14];
+    else if(has(/\bsixteenths?\b|\b16ths?\b|\brolls?\b|\bstutter\b/))w.steps=Array.from({length:16},(_,i)=>i);
+    else if(has(/\bhalf ?-?time\b|\btwice a bar\b|\bevery half bar\b/))w.steps=[0,8];
+    else if(has(/\bdownbeats?\b|\bon the one\b|\bon (beat )?one\b|\bstart of (each|every) bar\b|\bonce (a|per|each) bar\b|\bevery bar\b|\beach bar\b/))w.steps=[0];
+    else if(has(/\bend of (each|every) bar\b|\bfills?\b|\bturnarounds?\b/))w.steps=[12,14,15];
+    else if(has(/\bsparse\b|\bnow and then\b|\boccasionally\b|\bevery so often\b|\bhere and there\b/)){w.steps=[0];w.sparse=true;}
+    // follow or replace another track
+    const role=()=>{for(const[r,re]of ROLEW)if(re.test(t))return r;return null;};
+    if(has(/\b(replace|instead of|swap( out)?|in place of)\b/)){w.replace=role();if(!w.replace){const mm=t.match(/\b(?:replace|instead of|swap(?: out)?|in place of) (?:the |my )?([a-z0-9 ]{2,30}?)\b(?: with| in| on|\.|,| $)/);if(mm)w.replaceName=mm[1].trim();}}
+    else if(has(/\b(layer(ed)?|with|along ?side|along with|same (rhythm|pattern|groove) as|follow(s|ing)?|doubl(e|es|ing)|together with|on top of|match(ing)?)\b/)){const r=role();if(r)w.follow=r;}
+    if(w.follow==="drums"){w.follow=null;}
+    // level, side, space
+    if(has(/\b(a )?(bit|little|touch|tad) (quieter|softer|lower)\b|\bslightly (quieter|softer)\b/))w.level=-3;
+    else if(has(/\bquiet(ly)?\b|\bsubtle\b|\bsoft(ly)?\b|\bfaint\b|\bbackground\b|\bin the back\b|\blow in the mix\b|\bbarely\b|\bunder(neath)?\b/))w.level=-7;
+    else if(has(/\b(a )?(bit|little|touch|tad) louder\b|\bslightly louder\b/))w.level=2;
+    else if(has(/\bloud(er)?\b|\bup ?front\b|\bprominent\b|\bout front\b|\bin your face\b|\bpunchy\b|\bon top\b/))w.level=4;
+    if(has(/\b(on|to|in) the left\b|\bpanned left\b|\bleft side\b|\bhard left\b/))w.pan=-.5;else if(has(/\b(on|to|in) the right\b|\bpanned right\b|\bright side\b|\bhard right\b/))w.pan=.5;else if(has(/\b(in the )?(center|centre|middle)\b/))w.pan=0;
+    if(has(/\bdry\b|\bno reverb\b|\btight\b/))w.dry=true;
+    else{if(has(/\breverb\b|\bspac(ey|y|ious)\b|\bwet\b|\bdreamy\b|\bfar away\b|\bdistant\b|\bethereal\b/))w.reverb=.35;if(has(/\becho(es|ey)?\b|\bdelay\b/))w.delay=.3;}
+    if(has(/\boctave (up|higher)\b|\bup an octave\b|\bhigher pitch\b|\bpitch(ed)? up\b/))w.octave=12;else if(has(/\boctave (down|lower)\b|\bdown an octave\b|\blower pitch\b|\bpitch(ed)? down\b|\bdeeper\b/))w.octave=-12;
+    if(has(/\bdon'?t tune\b|\bas it is\b|\bas is\b|\bkeep (its|the|it'?s) (own )?(pitch|key)\b|\bno tuning\b|\buntuned\b/))w.noTune=true;
+    if(has(/\bmatch (the )?key\b|\bmove the song to\b|\bsong (to|in) (its|that) key\b|\bfollow its key\b/))w.songToKey=true;
+    if(has(/\brevers/))w.reverse=true;
+    if(has(/\bchop(ped|s)?\b|\bslice(d)?\b/))w.chop=has(/\bstutter\b/)?16:8;
+    if(has(/\bstretch(ed)?\b|\bfit (it )?to (the )?(bar|tempo|beat)\b|\bin time\b/))w.fit=true;
+    return w;}
+  /* where the song gets busy: the bar with the biggest jump in parts is the drop */
+  function sections(song){const act=Array(8).fill(0);for(const t of song.tracks){if(t.mute||!t.steps.some(v=>v!=null))continue;t.bars.forEach((b,i)=>{if(b)act[i]++;});}
+    let drop=4,gain=0;for(let b=1;b<8;b++){const pre=act.slice(0,b),post=act.slice(b),g=post.reduce((a,c)=>a+c,0)/post.length-pre.reduce((a,c)=>a+c,0)/pre.length;if(g>gain+.01){gain=g;drop=b;}}
+    const flat=gain<.5;if(flat)drop=4;
+    let brk=null,low=1e9;for(let b=1;b<7;b++){const v=act[b]+act[b+1];if(v<low&&b+1<drop+3){low=v;brk=b;}}
+    return{act,drop,flat,brk:brk==null?2:brk};}
+  const FAMILY={kick:"drums",snare:"drums",hat:"drums",perc:"drums",impact:"fx",riser:"fx",texture:"fx",bass:"tonal",note:"tonal",pad:"tonal",phrase:"tonal",loop:"loop",vocal:"vocal"};
+  const ROLE_LEVEL={kick:0,snare:-2,hat:-11,perc:-8,bass:-2,note:-6,pad:-11,phrase:-6,loop:-5,vocal:-3,riser:-7,impact:-4,texture:-11};
+  const KIND_WORDS={kick:"a kick-like hit",snare:"a snare-like hit",hat:"a bright, short hit",perc:"a short percussion hit",bass:"a bass note",note:"a tuned note",pad:"a long, held sound",phrase:"a melody",loop:"a loop",vocal:"a vocal",riser:"a riser that builds up",impact:"an impact",texture:"a texture"};
+  const ord=n=>["first","second","third","fourth","fifth","sixth","seventh","eighth"][n]||String(n+1);
+  function barWords(bars){if(bars.length===8)return"in every bar";const s=bars.map(b=>b+1);
+    const run=s.every((v,i)=>i===0||v===s[i-1]+1);if(s.length===1)return"in bar "+s[0];if(run)return`in bars ${s[0]} to ${s[s.length-1]}`;return"in bars "+s.slice(0,-1).join(", ")+" and "+s[s.length-1];}
+  function stepWords(st){const k=st.join(",");return{"0":"on the first beat","0,8":"on beats 1 and 3","4,12":"on beats 2 and 4","0,4,8,12":"on every beat","2,6,10,14":"on the offbeats","0,2,4,6,8,10,12,14":"on every eighth note","12,14,15":"as a fill at the end of the bar"}[k]||null;}
+  /* the plan: steps, bars and settings for one new track */
+  function plan(snd,A,song,wish){
+    const kind=A.kind,sd=60/song.bpm/4,bar=16*sd,S=sections(song),fam=FAMILY[kind]||"fx",notes=[];
+    const minor=song.scale!=="major",third=minor?3:4,sev=minor?10:11,tonalAuto=!!snd.tonal;
+    const byRole=r=>song.tracks.filter(t=>!t.mute&&t.role===r&&t.steps.some(v=>v!=null));
+    const occ=Array(16).fill(0),tocc=Array(16).fill(0);for(const t of song.tracks){if(t.mute)continue;const w=t.bars.filter(Boolean).length/8;t.steps.forEach((v,i)=>{if(v==null)return;if(FAMILY[t.role]==="drums")occ[i]+=w;else if(FAMILY[t.role]==="tonal"||t.role==="vocal")tocc[i]+=w;});}
+    const range=(a,b)=>{const r=[];for(let i=a;i<=b;i++)r.push(i);return r;};
+    const D=S.drop,dropBars=range(D,7),songBars=range(0,7);
+    let bars=null,steps=null,offs=null,fx={},align=null,where=wish.where,gap=false;
+    // follow or replace another part
+    let ref=null;if(wish.follow||wish.replace){const r=wish.follow||wish.replace;ref=byRole(r)[0]||null;}
+    if(!ref&&wish.replaceName){ref=song.tracks.find(t=>t.name.toLowerCase().includes(wish.replaceName))||null;}
+    // section
+    const sect={bars:wish.bars,all:songBars,alt:[0,2,4,6],intro:range(0,Math.max(1,Math.min(D,2)-1)),first:range(0,3),drop:dropBars,break:[S.brk,S.brk+1],outro:[7],hit:[D],leadin:[Math.max(0,D-1)]};
+    if(where&&sect[where])bars=sect[where].slice();
+    // length of the sound in bars, used for loops, vocals, pads and long sounds
+    const len=Math.max(.01,A.duration-A.start),nb=len/bar;
+    let fitBars=null;
+    if(kind==="loop"||wish.fit){const c=[.5,1,2,4];let best=1,bd=9;for(const v of c){const d=Math.abs(Math.log2(nb/v));if(d<bd){bd=d;best=v;}}fitBars=best;}
+    // the default part for each kind of sound
+    let refOffs=null;if(ref&&!wish.steps){steps=ref.steps.map((v,i)=>v==null?null:i).filter(v=>v!=null);if(!bars)bars=ref.bars.map((b,i)=>b?i:-1).filter(i=>i>=0);
+      if(FAMILY[ref.role]==="tonal"&&FAMILY[kind]==="tonal"){const bump=v=>{if(song.scale!=="major")return v;const pc=((v%12)+12)%12;return pc===3||pc===8||pc===10?v+1:v;};refOffs=steps.map(i=>{const v=ref.steps[i]||0;return ref.tonal&&!tonalAuto?bump(v):v;});}}
+    if(wish.steps)steps=wish.steps.slice();
+    if(where==="leadin"&&!wish.steps){align="end";}
+    else if(where==="hit"&&!wish.steps){steps=[0];}
+    if(!steps){
+      if(kind==="riser"){align="end";if(!bars)bars=[Math.max(0,D-1)];}
+      else if(kind==="impact"){steps=[0];if(!bars)bars=[D];}
+      else if(kind==="kick"){const k=byRole("kick")[0];steps=k?k.steps.map((v,i)=>v==null?null:i).filter(v=>v!=null):[0,8];}
+      else if(kind==="snare"){const s=byRole("snare")[0];steps=s?s.steps.map((v,i)=>v==null?null:i).filter(v=>v!=null):[4,12];}
+      else if(kind==="hat"){gap=true;const c=[[2,6,10,14],[0,2,4,6,8,10,12,14],[3,7,11,15]];steps=c.sort((a,b)=>a.reduce((s,i)=>s+occ[i],0)/a.length-b.reduce((s,i)=>s+occ[i],0)/b.length)[0];}
+      else if(kind==="perc"){gap=true;const c=[[3,11],[6,14],[10],[7,15],[2,10],[14]];const sc=a=>a.reduce((s,i)=>s+occ[i],0)/a.length;steps=c.slice().sort((a,b)=>sc(a)-sc(b))[0];}
+      else if(kind==="bass"){const k=byRole("kick")[0];steps=k?k.steps.map((v,i)=>v==null?null:i).filter(v=>v!=null):[0,10];if(steps.length>6)steps=steps.filter((_,i)=>i%2===0);}
+      else if(kind==="note"){const cand=[0,3,6,8,10,12,14];const pick=cand.slice().sort((a,b)=>tocc[a]-tocc[b]||a-b).slice(0,len>bar*.4?2:4).sort((a,b)=>a-b);steps=pick;}
+      else if(kind==="loop"&&fitBars){steps=fitBars===.5?[0,8]:[0];}
+      else steps=[0];
+    }
+    // bars when nothing set them
+    if(!bars){if(kind==="pad"||kind==="texture")bars=songBars;else if(kind==="phrase"||kind==="vocal")bars=dropBars;else if(kind==="bass"){const b=byRole("bass")[0]||byRole("kick")[0];bars=b?b.bars.map((x,i)=>x?i:-1).filter(i=>i>=0):dropBars;}else bars=dropBars;}
+    if(wish.sparse)bars=bars.filter((_,i)=>i%2===0);
+    // a long sound that is not stretched plays once and rings, so start it only as often as it fits
+    if(!fitBars&&!align&&steps.length===1&&steps[0]===0&&nb>1.15&&bars.length>1){const every=Math.ceil(nb-.1);const first=bars[0];bars=bars.filter(b=>(b-first)%every===0);}
+    if(wish.once)bars=bars.slice(0,1);
+    if(align==="end"){const n=Math.round(len/sd);if(n<=16)steps=[cl(16-n,0,15)];else{steps=[0];fx.fit=true;fx.length=16;}}
+    if(fitBars){fx.fit=true;if(fitBars>=2){fx.chop=fitBars;fx.length=16;steps=[0];}else fx.length=fitBars===.5?8:16;
+    }
+    // notes in key: offsets for tuned parts
+    offs=steps.map(()=>0);
+    if(refOffs)offs=refOffs.slice();
+    else if(kind==="note"&&steps.length>1&&!ref){const seq=[0,third,7,third];offs=steps.map((_,i)=>seq[i%seq.length]);if(tonalAuto)offs=offs.map(v=>v===4?3:v===11?10:v);}
+    // tuning
+    let tuned=0,keyNote=null;const shiftFit=fx.fit?12*Math.log2(len/((fx.length||16)*sd)/(fx.chop>1?fx.chop:1)):0;
+    let tunable=false;if(!tonalAuto&&!wish.noTune&&(A.midi!=null||A.key)){
+      const want=song.key;
+      if(!fx.fit&&A.midi!=null&&A.steady&&A.conf>=.5&&(kind==="note"||kind==="pad"||kind==="bass"||kind==="vocal"||kind==="texture")){tuned=wrap6(want-A.midi);tunable=true;}
+      else if(!fx.fit&&A.key&&(kind==="vocal"||kind==="loop"||kind==="texture"||kind==="phrase")){tuned=wrap6(want-A.key.root+(A.key.scale!==song.scale?(minor?-3:3):0));tunable=true;}
+      else if(fx.fit&&(A.key||(A.steady&&A.conf>=.5))){const root=A.key?A.key.root:A.midi;keyNote=((Math.round(root+shiftFit)%12)+12)%12;}
+    }
+    if(Math.abs(tuned)>0)fx.pitch=tuned;
+    if(wish.octave)fx.pitch=(fx.pitch||0)+wish.octave;
+    // level against the rest of the song
+    const refs=song.tracks.filter(t=>!t.mute&&t.loud!=null&&(FAMILY[t.role]==="drums"||t.role==="bass"));const pool=refs.length?refs:song.tracks.filter(t=>!t.mute&&t.loud!=null);
+    const refLoud=pool.length?Math.max(...pool.map(t=>t.loud)):-14;
+    let vol=refLoud+(ROLE_LEVEL[kind]??-6)-A.rmsDb+(wish.level||0);vol=Math.round(cl(vol,-30,6)*2)/2;fx.vol=vol;
+    // keep the low end clear for the kick and bass
+    const lowParts=song.tracks.some(t=>!t.mute&&(t.role==="bass"||t.role==="kick"));
+    if(lowParts&&!/^(bass|kick|impact|riser)$/.test(kind)&&A.low>.22){fx.filterType="highpass";fx.cutoff=kind==="pad"||kind==="texture"?220:160;}
+    // side and space
+    if(wish.pan!=null)fx.pan=wish.pan;else if(kind==="hat"||kind==="perc"||kind==="note"){const pans=song.tracks.filter(t=>!t.mute).map(t=>t.pan||0),side=pans.reduce((a,b)=>a+b,0);fx.pan=side>.05?-.3:.3;if(kind==="note")fx.pan*=.6;}
+    if(!wish.dry){if(wish.reverb)fx.reverb=wish.reverb;else if(kind==="pad"||kind==="texture"||kind==="riser")fx.reverb=.2;if(wish.delay)fx.delay=wish.delay;}
+    if(wish.reverse)fx.reverse=true;if(wish.chop&&!fx.chop)fx.chop=wish.chop;
+    if(A.start>.004&&A.attack<.15)fx.start=Math.round(A.start*1000)/1000;
+    // hold long notes only as long as the gap to the next one
+    if(steps.length>1&&!fx.fit&&(kind==="note"||kind==="bass"||kind==="pad")){const gap=Math.min(...steps.slice(1).map((v,i)=>v-steps[i]),16-steps[steps.length-1]+steps[0]);if(len>gap*sd*1.3)fx.length=gap;}
+    if(steps.length===1&&!fx.fit&&(kind==="pad"||kind==="texture")&&len>bar)fx.length=0;
+    const grid=Array(16).fill(null);steps.forEach((s,i)=>{if(s>=0&&s<16)grid[s]=offs[i]||0;});
+    bars=[...new Set(bars)].filter(b=>b>=0&&b<8).sort((a,b)=>a-b);if(!bars.length)bars=[D];
+    // words for the person
+    const nm=snd.name,where2=align==="end"?`so it ends right as bar ${bars[0]+2>8?1:bars[0]+2} begins`:barWords(bars);
+    const sw=align==="end"?`starting in bar ${bars[0]+1}`:(ref&&!wish.steps?`with the same rhythm as the ${ref.name}`:stepWords(steps)||(gap?"in the gaps the other drums leave":refOffs?"":kind==="note"?"in the gaps the other tuned parts leave":`on ${steps.length} step${steps.length>1?"s":""} of the bar`));
+    const parts=[`${nm} sounds like ${KIND_WORDS[kind]||"a sound"}${A.midi!=null&&A.conf>=.5&&A.steady?` (${NN[((A.midi%12)+12)%12]})`:""}.`];
+    parts.push(`It now plays ${sw?sw+", ":""}${where2}.`);
+    const det=[],K=`${NN[song.key]} ${song.scale}`;if(tuned)det.push(`moved it ${Math.abs(tuned)} semitone${Math.abs(tuned)>1?"s":""} ${tuned>0?"up":"down"} into ${K}`);else if(tunable)det.push(`left its pitch alone because it's already in ${K}`);
+    if(wish.octave)det.push(`put it an octave ${wish.octave>0?"up":"down"}`);
+    if(fx.fit&&fitBars)det.push(`stretched it to ${fitBars>=1?fitBars+" bar"+(fitBars>1?"s":""):"half a bar"} so it loops in time`);
+    if(fx.filterType==="highpass")det.push("cut its lows below "+fx.cutoff+" Hz so the kick and bass stay clean");
+    if(fx.start)det.push(`skipped ${Math.round(fx.start*1000)} ms of silence at its start so it lands on the beat`);
+    const rv=Math.round(vol),who=refs.length?"the drums":"the mix";det.push(rv<0?`turned it down ${-rv} dB to sit under ${who}`:rv>0?`turned it up ${rv} dB to sit with ${who}`:`left its level as it is because it already sits with ${who}`);
+    if(ref&&wish.replace)det.push(`muted the ${ref.name} it replaces`);
+    parts.push(det.length?"I "+det.join(", ").replace(/, ([^,]*)$/," and $1")+".":"");
+    if(keyNote!=null&&!wish.noTune){const diff=wrap6(song.key-keyNote);if(diff)parts.push(`It stays in its own key (about ${NN[keyNote]}) because tuning a stretched loop would knock it off the beat. Say "match the key" to move the song to it.`);}
+    if(A.midi!=null&&tuned&&Math.abs(A.cents)>30)parts.push(`It was ${Math.abs(A.cents)} cents ${A.cents>0?"sharp":"flat"} to begin with, so it may still sound a touch off.`);
+    return{kind,steps:grid,bars:Array.from({length:8},(_,i)=>bars.includes(i)),fx,muteId:ref&&wish.replace?ref.id:null,family:fam,summary:parts.filter(Boolean).join(" "),keyNote,sections:S};}
+  return{mono,analyze,read,plan,sections,NN,FAMILY};
+})();
+/* ---------- end place core */
+/* the studio side of placing: what each track is, the "put it in the song" box, and undo */
+function placeInfo(s){if(!s||!s.buffer)return null;if(!s.analysis||s.analysis.buf!==s.buffer){try{const a=PLACE.analyze(PLACE.mono(s.buffer),s.buffer.sampleRate,s.name,s.group);Object.defineProperty(a,"buf",{value:s.buffer,enumerable:false});s.analysis=a;}catch(e){console.warn("place analyze",e);return null;}}return s.analysis;}
+function trackRole(t){const s=soundById(t.soundId);if(!s)return"texture";const nm=s.name.toLowerCase();
+  if(s.group==="drums"){if(/kick|\bbd\b/.test(nm))return"kick";if(/snare|clap|rim/.test(nm))return"snare";if(/hat|shaker|ride|cym|tamb/.test(nm))return"hat";const k=(placeInfo(s)||{}).kind;return k==="kick"?"kick":"perc";}
+  if(s.group==="bass")return"bass";if(s.group==="chords")return"pad";if(s.group==="melody")return"note";if(s.group==="vocal")return"vocal";return(placeInfo(s)||{}).kind||"texture";}
+function placeSong(){return{bpm:state.bpm,key:settings.key,scale:settings.scale,tracks:state.tracks.map(t=>{const s=soundById(t.soundId),a=s?placeInfo(s):null;
+  return{id:t.id,name:s?s.name:"track",soundId:t.soundId,role:trackRole(t),tonal:!!(s&&tonal(s)),steps:t.steps,bars:t.bars,mute:t.mute,pan:t.fx.pan||0,loud:a&&!a.silent?a.rmsDb+(t.fx.vol||0):null};})};}
+function placeSound(s,text){if(!s)return{error:"That sound isn't in the studio any more."};ctx.resume();const A=placeInfo(s);
+  if(!A)return{error:`Couldn't listen to ${s.name}. Try adding it again.`};if(A.silent)return{error:`${s.name} is silent, so there's nothing to place.`};
+  const wish=PLACE.read(text||""),song=placeSong(),p=PLACE.plan({name:s.name,tonal:tonal(s)},A,song,wish);
+  snaps.push(snapOf());if(snaps.length>20)snaps.shift();
+  const t=newTrack(s.id,{steps:p.steps,bars:p.bars,fx:p.fx});let extra="";
+  if(p.muteId){const m=state.tracks.find(x=>x.id===p.muteId);if(m&&m.locked)extra+=` The ${tName(m)} track is protected, so I left it playing.`;else if(m){m.mute=true;live.apply(m);}}
+  if(wish.songToKey&&p.keyNote!=null&&p.keyNote!==settings.key){settings.key=p.keyNote;changed();extra+=` The song is now in ${PLACE.NN[p.keyNote]} ${settings.scale}, so the built-in bass, pad and keys moved with it.`;}
+  let at=-1;state.tracks.forEach((x,i)=>{if((PLACE.FAMILY[trackRole(x)]||"fx")===p.family)at=i;});
+  if(at>=0)state.tracks.splice(at+1,0,t);else state.tracks.push(t);
+  selId=t.id;renderTracks();updUndo();
+  const summary=p.summary+extra;try{window.dispatchEvent(new CustomEvent("lw-placed",{detail:{soundId:s.id,trackId:t.id,summary}}));}catch(e){}
+  return{track:t,plan:p,summary};}
+/* "put my riser into the drop": a request that names one sound and where it goes */
+function placeMatch(text){const t=" "+text.toLowerCase().replace(/[^a-z0-9#]+/g," ")+" ";
+  if(!/ (add|put|place|drop|bring|incorporate|insert|use|layer|stick|throw|slot|work|fit|mix|blend|sprinkle) /.test(t))return null;
+  if(/ (bpm|tempo|faster|slower|genre|style|lo fi|lofi|trap|house|techno|ambient|start over|from scratch|new song|whole new) /.test(t))return null;
+  const norm=x=>" "+x.toLowerCase().replace(/[^a-z0-9#]+/g," ").trim()+" ";let best=null;
+  for(const s of sounds){const nm=norm(s.name);if(nm.trim().length<3||!t.includes(nm))continue;
+    if(s.origin==="free"&&state.tracks.some(x=>x.soundId===s.id)&&!/ (another|extra|second|more|new) /.test(t))continue;
+    if(!best||nm.length>norm(best.name).length||(nm.length===norm(best.name).length&&s.origin!=="free"))best=s;}
+  if(!best&&/ (the |my )?(new|last|latest|fresh) sound | sound i (just )?(made|generated|recorded|uploaded|added) | (this|that|my) sound /.test(t))best=[...sounds].reverse().find(s=>s.origin!=="free")||null;
+  return best?{sound:best}:null;}
+/* the small box: where and how, in plain words */
+let placeFor=null;
+function openPlace(s,anchor){closePops("placePop");placeFor=s;let m=$("placePop");
+  if(!m){m=h("div","pop placepop");m.id="placePop";m.setAttribute("role","dialog");m.setAttribute("aria-labelledby","placeH");document.body.appendChild(m);}
+  const A=placeInfo(s)||{};const KW={kick:"kick-like hit",snare:"snare-like hit",hat:"short bright hit",perc:"percussion hit",bass:"bass note",note:"tuned note",pad:"long held sound",phrase:"melody",loop:"loop",vocal:"vocal",riser:"riser",impact:"impact",texture:"texture"};
+  m.innerHTML=`<div class="aipop-head"><span class="label" id="placeH">Put it in the song</span><span class="sp"></span><button class="ibtn" type="button" data-a="x" aria-label="Close"><svg class="ico" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="small"><b></b> <span class="muted"></span></div>
+  <textarea rows="2" aria-label="Where and how should it play?" placeholder="Where and how? For example: in the drop, on the 2 and 4, a bit quieter. Leave it empty and I'll choose."></textarea>
+  <div class="chips"></div>
+  <div class="row"><button class="btn primary" type="button" data-a="go">Place it</button><button class="btn" type="button" data-a="hear">Hear it first</button><span class="sp"></span></div>
+  <div class="result" hidden></div>`;
+  m.querySelector("b").textContent=s.name;m.querySelector(".muted").textContent=A.kind?`sounds like a ${KW[A.kind]||A.kind}${A.midi!=null&&A.steady&&A.conf>=.5?" ("+PLACE.NN[((A.midi%12)+12)%12]+")":""}`:"";
+  const ta=m.querySelector("textarea"),chips=m.querySelector(".chips");
+  for(const c of["In the drop","Right before the drop","Whole song","Intro only","On the offbeats","With the kick","A bit quieter","Don't tune it"]){const b=h("button","chip",escH(c));b.type="button";b.onclick=()=>{ta.value=(ta.value.trim()?ta.value.trim().replace(/[,.]$/,"")+", ":"")+c.toLowerCase();ta.focus();};chips.appendChild(b);}
+  const res=m.querySelector(".result");
+  m.querySelector('[data-a="x"]').onclick=()=>{m.hidden=true;};
+  m.querySelector('[data-a="hear"]').onclick=()=>preview(s);
+  m.querySelector('[data-a="go"]').onclick=()=>{const r=placeSound(placeFor,ta.value);res.hidden=false;res.innerHTML="";
+    if(!r||!r.track){res.dataset.kind="err";res.textContent=(r&&r.error)||"Couldn't place it.";return;}
+    res.dataset.kind="ok";res.appendChild(h("div",null,esc(r.summary)));const row=h("div","ask-row");
+    const u=h("button","btn","Undo");u.type="button";u.onclick=()=>{const sn=snaps.pop();if(sn){restore(sn);res.innerHTML="";res.appendChild(h("div",null,"Undone. The song is back how it was."));}updUndo();};
+    const pl=h("button","btn",playing?"Playing":"Play the song");pl.type="button";pl.onclick=()=>{if(!playing)start();pl.textContent="Playing";};
+    const ok=h("button","btn","Done");ok.type="button";ok.onclick=()=>{m.hidden=true;};row.append(u,pl,ok);res.appendChild(row);
+    m.querySelector('[data-a="go"]').textContent="Place it again";};
+  m.hidden=false;
+  // sit next to the sound on a laptop, as a sheet near the bottom on a phone
+  const vw=window.innerWidth||1200,vh=window.innerHeight||800,w=Math.min(440,vw-24);
+  if(isPhone()||!anchor||!anchor.getBoundingClientRect){m.style.left=Math.max(12,(vw-w)/2)+"px";m.style.top="";m.style.bottom="calc(12px + env(safe-area-inset-bottom,0px))";}
+  else{const r=anchor.getBoundingClientRect();let x=r.right+8;if(x+w>vw-12)x=Math.max(12,r.left-w-8);m.style.left=x+"px";m.style.bottom="";m.style.top=Math.max(12,Math.min(r.top-20,vh-380))+"px";}
+  setTimeout(()=>ta.focus(),0);}
+document.addEventListener("pointerdown",e=>{const t=e.target,m=$("placePop");if(!m||m.hidden||!t||!t.closest)return;if(!t.closest("#placePop,[data-a=\"fit\"]"))m.hidden=true;});
+
 applyLayout();
 renderSounds();fillLiveSelect();
 try{const k=keywordPlan($("prompt").value);applyPlan(k);$("aiPop").hidden=true;showResult("Loaded an example built from the prompt above: "+k.summary+" Press Play.");}catch(e){renderTracks();}
@@ -2040,6 +2335,11 @@ async function songSet(sg){if(!sg||!Array.isArray(sg.tracks))return{ok:false,dro
   for(const t of keep){const n=parseInt(String(t.id).slice(1),10);if(n>tid)tid=n;}
   renderSounds();return{ok:true,dropped:sg.tracks.length-keep.length};}
 window.__lw={ui:{efx,addPedal,removePedal,deriveChain,PEDALS,PDEF,get layout(){return layout},applyLayout,showPanel,popOut,dockPanel,usePreset,select,knob,handleShortcut,addTrackFromSound,moveTrack},state,sounds,keywordPlan,buildPrompt,applyPlan,renderMix,encodeWav,zip,crc32,settings,km:{captureKey,listen:i=>{listenIdx=i;}},rec:{rec,startRecKeys,stopRecKeys,recNote,startRecMic,stop},song:{get:songGet,set:songSet}};
+/* put any sound into the song from outside the studio, e.g. right after it is generated */
+window.__lw.place=(id,text)=>{const r=placeSound(soundById(id),text);return r&&r.track?{trackId:r.track.id,summary:r.summary,kind:r.plan.kind}:{error:(r&&r.error)||"Couldn't place it."};};
+window.__lw.analyzeSound=id=>{const a=placeInfo(soundById(id));return a?Object.assign({},a):null;};
+window.__lw.openPlace=id=>{const s=soundById(id);if(s)openPlace(s);};
+window.__lw.placeCore=PLACE;window.__lw.refreshSounds=renderSounds;
 window.dispatchEvent(new Event("lw-ready"));
 })();
 

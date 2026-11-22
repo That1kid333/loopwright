@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Place check</title>
+<style>
+body{margin:0;background:#0b0e12;color:#e9edf2;font:14px/1.45 Inter,system-ui,sans-serif}
+header{padding:10px 16px;border-bottom:1px solid #222a33;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#sum{font-weight:600}
+iframe{width:100%;height:560px;border:0;border-bottom:1px solid #222a33;background:#000}
+table{border-collapse:collapse;width:100%;font-size:13px}
+td,th{border-bottom:1px solid #1d242c;padding:6px 10px;text-align:left;vertical-align:top}
+.ok{color:#5ee38f}.bad{color:#ff7a59}.muted{color:#8e98a5}
+button{background:#3fd0bf;color:#03201c;border:0;border-radius:8px;padding:7px 14px;font-weight:600}
+</style></head><body>
+<header><b>Put a sound into the song: render check</b><span id="sum" class="muted">Loading the studio…</span><button id="again" type="button">Run again</button></header>
+<iframe id="f" src="../loopwright-demo.html" title="Studio"></iframe>
+<div style="padding:8px 16px"><table><thead><tr><th>Check</th><th>Result</th><th>Details</th></tr></thead><tbody id="out"></tbody></table></div>
+<script>
+/* Builds a known song, adds made-up sounds (a note in E with silence in front, a riser, a hit, a pad),
+   places each one with the studio's own placer, renders the song offline and measures where and how
+   each new part actually sounds. Everything runs in the page; nothing is sent anywhere. */
+const out=document.getElementById("out"),sum=document.getElementById("sum");let pass=0,fail=0;
+function row(name,ok,det){const tr=document.createElement("tr");tr.innerHTML=`<td></td><td class="${ok?"ok":"bad"}">${ok?"Pass":"Fail"}</td><td class="muted"></td>`;tr.children[0].textContent=name;tr.children[2].textContent=det;out.appendChild(tr);ok?pass++:fail++;}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+async function ready(){for(let i=0;i<200;i++){const w=document.getElementById("f").contentWindow;if(w&&w.__lw&&w.__lw.place)return w;await wait(100);}throw new Error("studio did not load");}
+function mkBuf(w,sec,fn){const sr=44100,n=Math.floor(sec*sr),b=new w.AudioBuffer({length:n,sampleRate:sr,numberOfChannels:1}),d=b.getChannelData(0);let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647*2-1;};for(let i=0;i<n;i++)d[i]=fn(i/sr,rnd);return b;}
+function rms(d,a,b){let s=0;a=Math.max(0,a|0);b=Math.min(d.length,b|0);for(let i=a;i<b;i++)s+=d[i]*d[i];return Math.sqrt(s/Math.max(1,b-a));}
+function monoOf(buf){const n=buf.length,o=new Float32Array(n);for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);for(let i=0;i<n;i++)o[i]+=d[i]/buf.numberOfChannels;}return o;}
+function onsets(d,sr){const hop=Math.round(sr*.005),e=[];for(let i=0;i+hop<d.length;i+=hop)e.push(20*Math.log10(rms(d,i,i+hop)+1e-9));const mx=Math.max(...e),r=[];let last=-99;
+  for(let k=2;k<e.length;k++){if(e[k]-Math.max(e[k-1],e[k-2])>9&&e[k]>mx-35&&k-last>12){r.push(k*hop/sr);last=k;}}return r;}
+async function run(){out.innerHTML="";pass=0;fail=0;sum.textContent="Running…";
+  const w=await ready(),L=w.__lw,P=L.placeCore;
+  // a known song in A minor at 90 BPM, no swing: kick every bar, the rest from bar 5
+  L.settings.key=9;L.settings.scale="minor";
+  const S=(a)=>Array.from({length:16},(_,i)=>a.includes(i)?0:null),B=(a)=>Array.from({length:8},(_,i)=>a.includes(i)?1:0),all=[0,1,2,3,4,5,6,7],drop=[4,5,6,7];
+  L.applyPlan({bpm:90,swing:0,tracks:[{sound:"kick",steps:S([0,8]),bars:B(all)},{sound:"snare",steps:S([4,12]),bars:B(drop)},{sound:"hat",steps:S([0,2,4,6,8,10,12,14]),bars:B(drop),fx:{vol:-9}},{sound:"bass",steps:[0,null,null,7,null,null,null,null,3,null,null,null,null,null,null,null],bars:B(drop)},{sound:"keys",steps:S([0,4,8]),bars:B(all),fx:{vol:-6}}]});
+  const sd=60/90/4,bar=16*sd,sr=44100;
+  const add=(id,name,buf)=>{const i=L.sounds.findIndex(s=>s.id===id);if(i>=0)L.sounds.splice(i,1);L.sounds.push({id,name,origin:"yours",buffer:buf,group:"",duration:buf.duration});};
+  add("t-note","Glass note",mkBuf(w,1.1,t=>t<.08?0:Math.sin(2*Math.PI*329.63*(t-.08))*.6*Math.exp(-(t-.08)*2.5)));
+  add("t-riser","Whoosh up",mkBuf(w,2,(t,r)=>r()*Math.pow(t/2,2)*.8));
+  add("t-hit","Tok",mkBuf(w,.35,(t,r)=>t<.06?0:(r()*.5+Math.sin(2*Math.PI*900*(t-.06))*.5)*Math.exp(-(t-.06)*25)));
+  add("t-pad","Warm swell",mkBuf(w,4,t=>(Math.sin(2*Math.PI*233.08*t)+.5*Math.sin(2*Math.PI*466.16*t))*.35*Math.min(1,t/1.2)*Math.min(1,(4-t)/.5)));
+  L.refreshSounds();
+  const solo=async id=>{for(const t of L.state.tracks)t.solo=t.id===id;const b=await L.renderMix();for(const t of L.state.tracks)t.solo=false;return b;};
+  // 1. the note: in the song's key, on its steps, landing on the grid despite 80 ms of silence
+  let r=L.place("t-note","");const tn=L.state.tracks.find(t=>t.id===r.trackId);
+  row("Note is placed",!!r.trackId,r.summary||r.error);
+  if(tn){const b=await solo(tn.id),d=monoOf(b),ons=onsets(d,b.sampleRate);
+    const exp=[];for(let k=0;k<8;k++){if(!tn.bars[k])continue;tn.steps.forEach((v,i)=>{if(v!=null)exp.push(k*bar+i*sd);});}
+    const errs=exp.slice(0,6).map(e=>{const o=ons.reduce((a,c)=>Math.abs(c-e)<Math.abs(a-e)?c:a,1e9);return Math.abs(o-e);});const worst=Math.max(...errs);
+    row("Note lands on the beat (silence at its front skipped)",worst<.012,`first notes at ${exp.slice(0,3).map(x=>x.toFixed(3)).join(", ")} s; heard within ${(worst*1000).toFixed(1)} ms`);
+    const first=exp[0],seg=d.subarray(Math.floor((first+.03)*b.sampleRate),Math.floor((first+.03)*b.sampleRate)+8192),A=P.analyze(seg,b.sampleRate,"x","");
+    row("First note is the song's root (A)",A.midi!=null&&((A.midi%12)+12)%12===9,`heard ${A.midi!=null?P.NN[((A.midi%12)+12)%12]:"no pitch"} (${A.cents} cents), the sound itself is E`);}
+  // 2. the riser: ends right as the drop (bar 5) begins
+  r=L.place("t-riser","");const tr=L.state.tracks.find(t=>t.id===r.trackId);row("Riser is placed",!!r.trackId,r.summary||r.error);
+  if(tr){const b=await solo(tr.id),d=monoOf(b),hop=Math.round(b.sampleRate*.01);let pk=0,pt=0;for(let i=0;i+hop<d.length;i+=hop){const v=rms(d,i,i+hop);if(v>pk){pk=v;pt=i/b.sampleRate;}}
+    const target=4*bar;row("Riser peaks right before the drop",pt<target+.005&&target-pt<.12,`loudest at ${pt.toFixed(3)} s, the drop starts at ${target.toFixed(3)} s`);}
+  // 3. a short hit: fills a gap in the drums and starts on its step
+  r=L.place("t-hit","");const th=L.state.tracks.find(t=>t.id===r.trackId);row("Hit is placed",!!r.trackId,r.summary||r.error);
+  if(th){const used=L.state.tracks.filter(t=>t!==th&&/kick|snare|hat/.test(t.soundId)).flatMap(t=>t.steps.map((v,i)=>v!=null?i:-1)).filter(i=>i>=0);const mine=th.steps.map((v,i)=>v!=null?i:-1).filter(i=>i>=0);
+    row("Hit goes where the kick, snare and hats are not",mine.every(i=>!used.includes(i)),`hit on steps ${mine.map(i=>i+1).join(", ")}; drums use ${[...new Set(used)].sort((a,b)=>a-b).map(i=>i+1).join(", ")}`);
+    const b=await solo(th.id),d=monoOf(b),ons=onsets(d,b.sampleRate),k0=th.bars.indexOf(true),e=k0*bar+mine[0]*sd,o=ons.reduce((a,c)=>Math.abs(c-e)<Math.abs(a-e)?c:a,1e9);
+    row("Hit starts on its step",Math.abs(o-e)<.012,`expected ${e.toFixed(3)} s, heard ${o.toFixed(3)} s`);}
+  // 4. a pad with a request: whole song, quiet; checks bars, level and the low cut
+  r=L.place("t-pad","whole song, quiet");const tp=L.state.tracks.find(t=>t.id===r.trackId);row("Pad is placed from plain words",!!r.trackId,r.summary||r.error);
+  if(tp){row("Pad plays through the song and sits low",tp.bars.filter(Boolean).length>=4&&tp.bars[0]&&tp.fx.vol<-6,`bars ${tp.bars.map((x,i)=>x?i+1:"").filter(Boolean).join(",")}, level ${tp.fx.vol} dB, pitch ${tp.fx.pitch||0}`);
+    const pm=L.state.tracks.find(t=>t.soundId==="kick"),bk=await solo(pm.id),bp=await solo(tp.id),dk=monoOf(bk),dp=monoOf(bp),lk=20*Math.log10(rms(dk,0,dk.length)),lp=20*Math.log10(rms(dp,0,dp.length));
+    row("Pad is quieter than the kick in the render",lp<lk-3,`kick ${lk.toFixed(1)} dB, pad ${lp.toFixed(1)} dB`);}
+  // 5. undo puts the song back; the edit is a normal track the user can change
+  const before=L.state.tracks.length;const t2=L.state.tracks.find(t=>t.soundId==="t-pad");if(t2){t2.steps[4]=0;}
+  row("New parts are normal, editable tracks",!!t2&&t2.steps[4]===0&&Array.isArray(t2.chain),`chain: ${(t2&&t2.chain||[]).join(", ")}`);
+  const full=await L.renderMix(),fd=monoOf(full),pkv=fd.reduce((a,v)=>Math.max(a,Math.abs(v)),0);
+  row("Whole song renders without clipping",pkv>.05&&pkv<=1.0,`peak ${pkv.toFixed(3)}, ${full.duration.toFixed(1)} s`);
+  sum.textContent=`${pass} passed, ${fail} failed`;sum.className=fail?"bad":"ok";}
+document.getElementById("again").onclick=()=>run().catch(e=>{sum.textContent="Error: "+e.message;sum.className="bad";});
+run().catch(e=>{sum.textContent="Error: "+e.message;sum.className="bad";});
+</script></body></html>
