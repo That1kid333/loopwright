@@ -2080,7 +2080,7 @@ const PLACE=(()=>{
     A.kind=classify(A,name,group);return A;}
   function classify(A,name,group){const nm=(name||"").toLowerCase(),g=group||"";
     if(/kick|\bbd\b|bass ?drum/.test(nm))return"kick";if(/snare|clap|rim/.test(nm))return"snare";if(/hat|shaker|ride|cymbal|tamb/.test(nm))return"hat";
-    if(/riser|uplift|sweep ?up|build/.test(nm))return"riser";if(/impact|boom|downlift|crash|hit fx|whoosh/.test(nm))return"impact";
+    if(/riser|uplift|sweep ?up|build|rise/.test(nm)||(A.slope>8&&A.active>=.8&&A.attack>A.active*.5))return"riser";if(/impact|boom|downlift|crash|hit fx/.test(nm))return"impact";
     if(/vocal|vox|voice|sing|acap|choir/.test(nm)||g==="vocal")return"vocal";if(/\bloop\b|groove|break/.test(nm))return"loop";
     if(/\bpad\b|drone|atmos|texture|ambien/.test(nm)||g==="chords")return"pad";if(/\b808\b|\bbass\b|sub/.test(nm)||g==="bass")return"bass";
     const pitched=A.conf>=.5&&A.midi!=null;
@@ -2196,7 +2196,7 @@ const PLACE=(()=>{
     if(!bars){if(kind==="pad"||kind==="texture")bars=songBars;else if(kind==="phrase"||kind==="vocal")bars=dropBars;else if(kind==="bass"){const b=byRole("bass")[0]||byRole("kick")[0];bars=b?b.bars.map((x,i)=>x?i:-1).filter(i=>i>=0):dropBars;}else bars=dropBars;}
     if(wish.sparse)bars=bars.filter((_,i)=>i%2===0);
     // a long sound that is not stretched plays once and rings, so start it only as often as it fits
-    if(!fitBars&&!align&&steps.length===1&&steps[0]===0&&nb>1.15&&bars.length>1){const every=Math.ceil(nb-.1);const first=bars[0];bars=bars.filter(b=>(b-first)%every===0);}
+    if(!fitBars&&!align&&steps.length===1&&steps[0]===0&&nb>1.15&&bars.length>1){const held=kind==="pad"||kind==="texture";const every=held?Math.max(1,Math.floor(nb)):Math.ceil(nb-.1);const first=bars[0];bars=bars.filter(b=>(b-first)%every===0);if(held&&every===1)fx.length=16;}
     if(wish.once)bars=bars.slice(0,1);
     if(align==="end"){const n=Math.round(len/sd);if(n<=16)steps=[cl(16-n,0,15)];else{steps=[0];fx.fit=true;fx.length=16;}}
     if(fitBars){fx.fit=true;if(fitBars>=2){fx.chop=fitBars;fx.length=16;steps=[0];}else fx.length=fitBars===.5?8:16;
@@ -2229,7 +2229,7 @@ const PLACE=(()=>{
     if(A.start>.004&&A.attack<.15)fx.start=Math.round(A.start*1000)/1000;
     // hold long notes only as long as the gap to the next one
     if(steps.length>1&&!fx.fit&&(kind==="note"||kind==="bass"||kind==="pad")){const gap=Math.min(...steps.slice(1).map((v,i)=>v-steps[i]),16-steps[steps.length-1]+steps[0]);if(len>gap*sd*1.3)fx.length=gap;}
-    if(steps.length===1&&!fx.fit&&(kind==="pad"||kind==="texture")&&len>bar)fx.length=0;
+    
     const grid=Array(16).fill(null);steps.forEach((s,i)=>{if(s>=0&&s<16)grid[s]=offs[i]||0;});
     bars=[...new Set(bars)].filter(b=>b>=0&&b<8).sort((a,b)=>a-b);if(!bars.length)bars=[D];
     // words for the person

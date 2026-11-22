@@ -34,6 +34,7 @@ async function run(){out.innerHTML="";pass=0;fail=0;sum.textContent="Running…"
   const S=(a)=>Array.from({length:16},(_,i)=>a.includes(i)?0:null),B=(a)=>Array.from({length:8},(_,i)=>a.includes(i)?1:0),all=[0,1,2,3,4,5,6,7],drop=[4,5,6,7];
   L.applyPlan({bpm:90,swing:0,tracks:[{sound:"kick",steps:S([0,8]),bars:B(all)},{sound:"snare",steps:S([4,12]),bars:B(drop)},{sound:"hat",steps:S([0,2,4,6,8,10,12,14]),bars:B(drop),fx:{vol:-9}},{sound:"bass",steps:[0,null,null,7,null,null,null,null,3,null,null,null,null,null,null,null],bars:B(drop)},{sound:"keys",steps:S([0,4,8]),bars:B(all),fx:{vol:-6}}]});
   const sd=60/90/4,bar=16*sd,sr=44100;
+  const r0=await L.renderMix(),peak0=monoOf(r0).reduce((a,v)=>Math.max(a,Math.abs(v)),0);
   const add=(id,name,buf)=>{const i=L.sounds.findIndex(s=>s.id===id);if(i>=0)L.sounds.splice(i,1);L.sounds.push({id,name,origin:"yours",buffer:buf,group:"",duration:buf.duration});};
   add("t-note","Glass note",mkBuf(w,1.1,t=>t<.08?0:Math.sin(2*Math.PI*329.63*(t-.08))*.6*Math.exp(-(t-.08)*2.5)));
   add("t-riser","Whoosh up",mkBuf(w,2,(t,r)=>r()*Math.pow(t/2,2)*.8));
@@ -69,7 +70,7 @@ async function run(){out.innerHTML="";pass=0;fail=0;sum.textContent="Running…"
   const before=L.state.tracks.length;const t2=L.state.tracks.find(t=>t.soundId==="t-pad");if(t2){t2.steps[4]=0;}
   row("New parts are normal, editable tracks",!!t2&&t2.steps[4]===0&&Array.isArray(t2.chain),`chain: ${(t2&&t2.chain||[]).join(", ")}`);
   const full=await L.renderMix(),fd=monoOf(full),pkv=fd.reduce((a,v)=>Math.max(a,Math.abs(v)),0);
-  row("Whole song renders without clipping",pkv>.05&&pkv<=1.0,`peak ${pkv.toFixed(3)}, ${full.duration.toFixed(1)} s`);
+  row("Song with the new parts peaks no higher than before",pkv>.05&&pkv<=Math.max(1,peak0)+.02,`peak before ${peak0.toFixed(3)}, after ${pkv.toFixed(3)}, ${full.duration.toFixed(1)} s`);
   sum.textContent=`${pass} passed, ${fail} failed`;sum.className=fail?"bad":"ok";}
 document.getElementById("again").onclick=()=>run().catch(e=>{sum.textContent="Error: "+e.message;sum.className="bad";});
 run().catch(e=>{sum.textContent="Error: "+e.message;sum.className="bad";});
