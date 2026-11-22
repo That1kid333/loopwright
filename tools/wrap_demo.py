@@ -38,6 +38,22 @@ window.LW_DEMO = __DEMO__;
     if (typeof data.balance === "number") window.dispatchEvent(new CustomEvent("lw-credits", { detail: data.balance }));
     return data.plan;
   }
+  /* Make a sound: the "make-sound" server function turns a description into synth recipes (the app renders them). */
+  window.lwMakeSound = async function (description, opts) {
+    opts = opts || {};
+    var s = await window.lwSession();
+    if (!s) throw fail("sign_in");
+    var res;
+    try {
+      res = await fetch(FN.replace(/arrange$/, "make-sound"), { method: "POST", signal: opts.signal,
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + s.access_token, "apikey": KEY },
+        body: JSON.stringify({ description: description, count: opts.count || 2, mode: opts.mode || "standard", kind: opts.kind }) });
+    } catch (e) { if (e && e.name === "AbortError") throw fail("cancelled"); throw fail("network"); }
+    var data = {}; try { data = await res.json(); } catch (e) {}
+    if (!res.ok || !data.sounds || !data.sounds.length) throw fail(data.error || "server", data.message);
+    if (typeof data.balance === "number") window.dispatchEvent(new CustomEvent("lw-credits", { detail: data.balance }));
+    return data;
+  };
   var sample = function (input, opts) { return arrange(input, opts).then(function (p) { return { text: JSON.stringify(p), truncated: false }; }); };
   sample.json = arrange;
   /* Keep the song and the studio's settings in the user's account, so a browser that forgets
@@ -160,7 +176,7 @@ if mode == "web":
     bar = """<div class="hostbar" style="display:flex;align-items:center;gap:10px;margin-left:auto;font-size:.78rem;color:var(--fg-2);white-space:nowrap">
 <span class="hostnote" id="lwsave"></span><span class="hostnote" title="The AI producer is in the Mac app">Browser demo</span><a href="/signin/?next=/studio/" id="lwsign" style="color:var(--fg-1);text-decoration:none">Sign in</a><a href="/download/" class="hostnote" style="color:var(--accent);text-decoration:none;font-weight:600">Get the Mac app</a></div>"""
     # The free preset library: sounds made in code plus the recorded packs in Supabase storage.
-    head_extra = '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml"><script src="/assets/supabase.js"></script><script src="/assets/originals.js"></script><script src="/assets/library.js"></script><script src="/assets/my-sounds.js"></script>'
+    head_extra = '<link rel="icon" href="/assets/icon.svg" type="image/svg+xml"><script src="/assets/supabase.js"></script><script src="/assets/originals.js"></script><script src="/assets/library.js"></script><script src="/assets/my-sounds.js"></script><script src="/assets/sound-maker.js"></script>'
     gate = """<div id="lwgate" role="dialog" aria-modal="true" aria-labelledby="lwgateh" style="position:fixed;inset:0;z-index:9999;background:#07090c;color:#e9edf2;display:grid;place-items:center;padding:24px;font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif">
 <div style="max-width:400px;text-align:center"><img src="/assets/icon.svg" alt="" width="48" height="48" style="margin-bottom:14px">
 <h1 id="lwgateh" style="font:600 1.5rem/1.25 'Space Grotesk',Inter,sans-serif;margin:0 0 10px">Sign in to try the studio</h1>
@@ -184,7 +200,7 @@ else:
     bar = """<div class="hostbar" id="lwbar" style="display:flex;align-items:center;gap:8px;margin-left:auto;font-size:.78rem;color:var(--fg-2);white-space:nowrap">
 <span id="lwsave" class="hostnote"></span><span id="lwwho"></span><a href="https://loopwright-studio.netlify.app/account/" target="_blank" style="color:var(--accent);text-decoration:none">Account</a><a href="#" id="lwout" style="color:var(--accent);text-decoration:none">Sign out</a></div>"""
     # Same free library and online My sounds as the website (copies of site/assets/*.js in desktop/src).
-    head_extra = '<script src="diag.js"></script><script src="supabase.js"></script><script src="auth.js"></script><script src="originals.js"></script><script src="library.js"></script><script src="my-sounds.js"></script>'
+    head_extra = '<script src="diag.js"></script><script src="supabase.js"></script><script src="auth.js"></script><script src="originals.js"></script><script src="library.js"></script><script src="my-sounds.js"></script><script src="sound-maker.js"></script>'
     tail = """<script>
 LWA.requireUser().then(function(u){ if(u) { document.getElementById("lwwho").textContent = u.email; if (window.LWCloud) window.LWCloud.start(); } });
 document.getElementById("lwout").onclick = function(e){ e.preventDefault(); LWA.signOut(); };

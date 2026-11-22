@@ -134,6 +134,13 @@ select.sel{padding:4px 6px;border:1px solid var(--line-2);border-radius:7px;back
 .bsearch input{flex:1;border:0;background:transparent;padding:6px 0;outline:none;min-width:0}
 .drop{margin:6px 10px;border:1.5px dashed var(--line-2);border-radius:10px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;background:var(--bg-2)}
 .drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--bg-2))}
+.mksnd{margin:0 10px 6px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg-2);display:flex;flex-direction:column;gap:6px}
+.mksnd b{font-size:.8rem}
+.mkrow{display:flex;gap:6px}.mkrow input{flex:1;min-width:0;background:var(--panel-3);border:1px solid var(--line);border-radius:7px;color:var(--fg);padding:6px 8px;font:inherit;font-size:.8rem}
+.mkrow input:disabled{opacity:.55}
+.mktake{display:flex;align-items:center;gap:6px;padding:5px 6px;border:1px solid var(--line);border-radius:8px;background:var(--panel-3)}
+.mktake .nm{flex:1;min-width:0;font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mktake .nm small{display:block;color:var(--fg-2);font-size:.7rem}
 .blist{flex:1;overflow:auto;padding:4px 6px 12px;display:flex;flex-direction:column;gap:2px}
 .bgroup{padding:10px 6px 4px}
 .libbar{display:flex;gap:6px;padding:4px 4px 6px}.libbar select{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;background:var(--bg-2);color:var(--fg);padding:5px 6px;font:inherit;font-size:.78rem}
@@ -543,6 +550,12 @@ select.sel{padding:4px 6px;border:1px solid var(--line-2);border-radius:7px;back
         <label class="btn primary" for="file"><svg class="ico" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Add your sounds</label>
         <input type="file" id="file" accept="audio/*,video/*,.wav,.mp3,.m4a,.aif,.aiff,.ogg,.flac,.mp4,.mov,.m4v,.webm" multiple hidden>
         <span class="small muted">or drop audio or video files anywhere. When you're signed in, they're saved to your account.</span>
+      </div>
+      <div class="mksnd" id="mksnd" hidden>
+        <b>Make a sound</b>
+        <form class="mkrow" id="mkForm"><input id="mkText" maxlength="400" placeholder="Describe it: warm dusty kick, shimmering pad" aria-label="Describe the sound to make"><button class="btn primary" id="mkGo" type="submit">Make</button></form>
+        <span class="small muted" id="mkNote">Describe any sound and you get two new takes, built from scratch. They're yours to use in any song.</span>
+        <div id="mkTakes" style="display:flex;flex-direction:column;gap:4px"></div>
       </div>
       <div class="blist" id="sounds" role="list"></div>
     </aside>
@@ -1141,7 +1154,7 @@ let btab="sounds",bq="";
 const GROUPS=[["drums","Drums"],["bass","Bass"],["chords","Chords and pads"],["melody","Melody"],["vocal","Vocals"],["","Other"]];
 const BADGE={yours:"Yours",free:"Free",example:"Example"};
 function drawWave(cv,buf,color,ht){const dpr=window.devicePixelRatio||1,w=cv.clientWidth||180,hh=ht||16;cv.width=w*dpr;cv.height=hh*dpr;const g=cv.getContext("2d");g.scale(dpr,dpr);g.fillStyle=color;const d=buf.getChannelData(0),step=Math.max(1,Math.floor(d.length/w));for(let x=0;x<w;x++){let m=0;for(let i=x*step,e=Math.min(d.length,i+step);i<e;i++)m=Math.max(m,Math.abs(d[i]));const bh=Math.max(1,m*hh);g.fillRect(x,(hh-bh)/2,1,bh);}}
-function renderSounds(){fillLiveSelect();const box=$("sounds");box.innerHTML="";$("drop").hidden=btab!=="mine";
+function renderSounds(){fillLiveSelect();const box=$("sounds");box.innerHTML="";$("drop").hidden=btab!=="mine";$("mksnd").hidden=btab!=="mine";
   document.querySelectorAll("[data-btab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.btab===btab));
   const q=bq.trim().toLowerCase();
   if(btab==="lib"){renderLib(box,q);return;}
@@ -1239,6 +1252,34 @@ async function cloudLoad(){if(!MS)return;let rows;
   if(n){if(btab==="lib")fillLiveSelect();else renderSounds();renderTracks();}}
 window.lwLoadOwnSound=MS?(id=>MS.buffer(id)):null;
 cloudLoad();
+/* ---------- Make a sound: Claude writes a synth recipe (window.lwMakeSound, the "make-sound" server function),
+   site/assets/sound-maker.js builds it here. Nothing is sampled, so the sound belongs to the user. ---------- */
+(function(){const SMK=window.LoopwrightSoundMaker,form=$("mkForm"),inp=$("mkText"),go=$("mkGo"),note=$("mkNote"),box=$("mkTakes");
+  const can=!!(SMK&&typeof window.lwMakeSound==="function"&&!window.LW_DEMO);
+  if(!can){inp.disabled=go.disabled=true;note.textContent=window.LW_DEMO?"Making new sounds from your words is part of the AI in the Mac app.":"Making new sounds from your words needs the Loopwright Mac app.";return;}
+  let busy=false;
+  const MSG={sign_in:"Sign in to make sounds.",no_credits:"You're out of credits for this.",daily_limit:"You've hit today's limit of AI requests.",rate_limited:"Too many requests at once. Wait a moment.",network:"Couldn't reach Loopwright. Check your connection."};
+  function play(buf){ctx.resume();const src=ctx.createBufferSource();src.buffer=buf;src.connect(ctx.destination);src.start();}
+  function takeRow(t,desc){const r=h("div","mktake");const nm=h("div","nm");nm.textContent=t.recipe.name;const sm=h("small");
+    sm.textContent=`${t.recipe.kind==="note"?"playable on keys":"one-shot"} · ${t.buffer.duration.toFixed(1)} s`;nm.appendChild(sm);
+    const hear=h("button","ibtn",ICON.play);hear.type="button";hear.title="Hear it";hear.setAttribute("aria-label","Hear "+t.recipe.name);hear.onclick=()=>play(t.buffer);
+    const add=h("button","btn",ICON.plus+"Add");add.type="button";add.title="Add to My sounds";
+    add.onclick=()=>{const s=addSound(t.recipe.name,"yours",t.buffer,"");s.made={description:desc,recipe:t.recipe};
+      add.disabled=true;add.innerHTML="Added";renderSounds();
+      cloudSave(s,MS?new File([MS.toWav(t.buffer)],t.recipe.name+".wav",{type:"audio/wav"}):undefined);
+      toast(`Added ${t.recipe.name} to My sounds. Drag it onto the timeline.`);};
+    r.append(nm,hear,add);return r;}
+  form.addEventListener("submit",async e=>{e.preventDefault();const desc=inp.value.trim();if(!desc||busy)return;
+    busy=true;go.disabled=true;go.textContent="Making…";note.textContent="Designing your sound…";box.innerHTML="";
+    try{let mode="standard";try{if(settings.mode==="quick")mode="quick";}catch(_){}
+      const res=await window.lwMakeSound(desc,{count:2,mode});
+      const takes=[];for(const r of res.sounds){try{const out=await SMK.render(r,{sampleRate:ctx.sampleRate});takes.push(out);}catch(_){}}
+      if(!takes.length)throw Object.assign(new Error("Couldn't build that sound. Try describing it differently."),{code:"render"});
+      takes.forEach(t=>box.appendChild(takeRow(t,desc)));
+      note.textContent=`Here ${takes.length>1?"are your takes":"is your take"}${res.credits_charged?`, ${res.credits_charged} credit${res.credits_charged>1?"s":""} used`:""}. Press play to hear, Add to keep.`;
+      play(takes[0].buffer);}
+    catch(err){note.textContent=MSG[err.code]||err.message||"Couldn't make that sound. Try again.";}
+    finally{busy=false;go.disabled=false;go.textContent="Make";}});})();
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",renderSounds);
 new MutationObserver(renderSounds).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
 
